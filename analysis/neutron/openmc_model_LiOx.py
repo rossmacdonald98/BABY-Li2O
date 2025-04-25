@@ -124,7 +124,7 @@ def baby_model():
     settings.batches = 100
     settings.inactive = 0
     settings.run_mode = "fixed source"
-    settings.particles = int(1e4)
+    settings.particles = int(1e6)
     settings.output = {"tallies": True}
     settings.photon_transport = False
 
@@ -145,20 +145,19 @@ def baby_model():
     # Create a second tally to add the mesh filter to for spatial TBR distribution results
     tbr_tally_mesh = openmc.Tally(name="TBR_mesh")
     tbr_tally_mesh.scores = ["(n,Xt)"]
-    tbr_tally_mesh.filters = [
-        openmc.CellFilter(Li2O_bed_cell)
-    ]  # Add cell filter to tally_mesh
+    tbr_tally_mesh.filters = [openmc.CellFilter(Li2O_bed_cell)]
+    # Add cell filter to tally_mesh
 
     # Create a cylindrical mesh
     r_grid = np.linspace(
-        0, Li2O_bed_radius, (int(Li2O_bed_radius * 5)) + 1
-    )  # ~0.2cm radial bins (5x as many bins as breeder radius in cm)
+        0, Li2O_bed_radius, (int(Li2O_bed_radius * 10)) + 1
+    )  # ~0.1cm radial bins (10x as many bins as breeder radius in cm)
 
     phi_grid = (0, 2 * np.pi)  # 1 azimuthal bin to capture full 360 degrees
 
     z_grid = np.linspace(
-        0, Li2O_bed_thickness, (int(Li2O_bed_thickness * 5)) + 1
-    )  # ~0.2cm axial bins (5x as many bins as breeder depth in cm)
+        0, Li2O_bed_thickness, (int(Li2O_bed_thickness * 10)) + 1
+    )  # ~0.1cm axial bins (10x as many bins as breeder depth in cm)
 
     mesh_origin = (
         x_c,
@@ -171,9 +170,8 @@ def baby_model():
     # Create a mesh filter from the cylindrical mesh
     mesh_filter = openmc.MeshFilter(cyl_mesh)
 
-    tbr_tally_mesh.filters.append(
-        mesh_filter
-    )  # Add cylindrical mesh filter to tbr_tally_mesh
+    # Add cylindrical mesh filter to tbr_tally_mesh
+    tbr_tally_mesh.filters.append(mesh_filter)
 
     # Append both tallies to the list of tallies
     tallies.append(tbr_tally)
@@ -665,6 +663,11 @@ if __name__ == "__main__":
 
     print(f"Global TBR: {mean:.6e}\n")
     print(f"Global TBR std. dev: {stdev:.6e}\n")
+
+    rel_stdev = stdev / mean
+
+    print(f"Relative standard deviation: {rel_stdev:.6e}\n")
+    print("Relative standard deviation below 1e-02 (1%) indicates good convergence.")
 
     processed_data = {
         "modelled_TBR": {

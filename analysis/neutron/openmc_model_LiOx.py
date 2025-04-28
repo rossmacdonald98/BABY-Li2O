@@ -124,7 +124,7 @@ def baby_model():
     settings.batches = 100
     settings.inactive = 0
     settings.run_mode = "fixed source"
-    settings.particles = int(1e6)
+    settings.particles = int(1e7)
     settings.output = {"tallies": True}
     settings.photon_transport = False
 

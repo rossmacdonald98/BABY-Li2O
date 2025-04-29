@@ -150,14 +150,14 @@ def baby_model():
 
     # Create a cylindrical mesh
     r_grid = np.linspace(
-        0, Li2O_bed_radius, (int(Li2O_bed_radius * 10)) + 1
-    )  # ~0.1cm radial bins (10x as many bins as breeder radius in cm)
+        0, Li2O_bed_radius, (int(Li2O_bed_radius * 5)) + 1
+    )  # ~0.2cm radial bins (5x as many bins as breeder radius in cm)
 
-    phi_grid = (0, 2 * np.pi)  # 1 azimuthal bin to capture full 360 degrees
+    phi_grid = np.linspace(0, 0.25 * np.pi, 10)  # 10 angular bins across 0.25 pi radians wedge
 
     z_grid = np.linspace(
-        0, Li2O_bed_thickness, (int(Li2O_bed_thickness * 10)) + 1
-    )  # ~0.1cm axial bins (10x as many bins as breeder depth in cm)
+        0, Li2O_bed_thickness, (int(Li2O_bed_thickness * 5)) + 1
+    )  # ~0.2cm axial bins (5x as many bins as breeder depth in cm)
 
     mesh_origin = (
         x_c,

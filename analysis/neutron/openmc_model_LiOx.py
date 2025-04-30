@@ -134,6 +134,9 @@ def baby_model():
     ############################################################################
     # Specify Tallies
 
+    # Specify the mesh cell size
+    cell_size = 0.2  # cm
+
     # Create a list of tallies
     tallies = openmc.Tallies()
 
@@ -150,14 +153,14 @@ def baby_model():
 
     # Create a cylindrical mesh
     r_grid = np.linspace(
-        0, Li2O_bed_radius, (int(Li2O_bed_radius * 5)) + 1
-    )  # ~0.2cm radial bins (5x as many bins as breeder radius in cm)
+        0, Li2O_bed_radius, (int(Li2O_bed_radius / cell_size)) + 1
+    )  # bin width ≈ cell_size
 
-    phi_grid = np.linspace(0, 0.25 * np.pi, 10)  # 10 angular bins across 0.25 pi radians wedge
+    phi_grid = np.linspace(0, 0.25 * np.pi, 10)  # 10 angular bins across 1/8 full rotation
 
     z_grid = np.linspace(
-        0, Li2O_bed_thickness, (int(Li2O_bed_thickness * 5)) + 1
-    )  # ~0.2cm axial bins (5x as many bins as breeder depth in cm)
+        0, Li2O_bed_thickness, (int(Li2O_bed_thickness / cell_size)) + 1
+    )  # bin height ≈ cell_size
 
     mesh_origin = (
         x_c,

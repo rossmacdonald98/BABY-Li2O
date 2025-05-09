@@ -124,7 +124,7 @@ def baby_model():
     settings.batches = 100
     settings.inactive = 0
     settings.run_mode = "fixed source"
-    settings.particles = int(1e7)
+    settings.particles = int(1.5e7)
     settings.output = {"tallies": True}
     settings.photon_transport = False
 
@@ -156,7 +156,7 @@ def baby_model():
         0, Li2O_bed_radius, (int(Li2O_bed_radius / cell_size)) + 1
     )  # bin width ≈ cell_size
 
-    phi_grid = np.linspace(0, 0.25 * np.pi, 10)  # 10 angular bins across 1/8 full rotation
+    phi_grid = np.linspace(0, 2 * np.pi, 81)  # 80 angular bins across full rotation
 
     z_grid = np.linspace(
         0, Li2O_bed_thickness, (int(Li2O_bed_thickness / cell_size)) + 1

@@ -1,5 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import time  # For timing the script
+from matplotlib.ticker import ScalarFormatter
+
 
 # --- 1. PHYSICAL AND SIMULATION PARAMETERS ---
 
@@ -10,10 +13,10 @@ fr = 0.8            # Surface Area Reduction Factor (accounts for necking)
 porosity_pellet = 0.2  # Pellet porosity (void fraction, ε)
 packing_density = 0.62 # Packing efficiency for random spheres (φ)
 r_bed = 6.5          # Packed Bed Radius (cm)
-z_bed = 8.0         # Packed Bed Height (cm)
+z_bed = 8         # Packed Bed Height (cm)
 
 # --- Diffusion, Trapping & Generation Properties ---
-D = 2.0e-10          # Intrinsic Diffusion Coefficient (cm^2/s)
+D = 1.0e-10          # Intrinsic Diffusion Coefficient (cm^2/s)
 kt = 1.0e-24        # Trapping Coefficient (cm^3/(atom*s))
 kd = 1.0e-3         # Detrapping Coefficient (1/s)
 Nt = 1.0e20         # Trapping Site Density (sites/cm^3)
@@ -22,39 +25,37 @@ tbr = 2e-5          # Volumetric Tritium Breeding Ratio (T/n/cm^3)
 G = source_rate*tbr # Tritium Generation Rate (T/cm^3/s)
 
 # --- Gas & System Properties ---
-h_grain = 1.0e-4    # Grain-Pore Mass Transfer Coeff (cm/s)
-h_pellet = 1.0e-4   # Pore-Sparge Mass Transfer Coeff (cm/s)
+h_grain = 2.0e-7    # Grain-Pore Mass Transfer Coeff (cm/s)
+h_pellet = 2.0e-3   # Pore-Sparge Mass Transfer Coeff (cm/s)
 Q_sparge = 8.33e-1 # Sparge Flow Rate (cm^3/s)
+decay_constant = 1.785e-9 # Tritium Decay Constant (1/s)
 
 # --- Simulation Parameters ---
 t_irr = 3600 # Irradiation Time (s)
-total_sim_time = 1000000 # Total simulation time (s)
-x = 0.1 # Position in Packed Bed (cm)
+total_sim_time = 2000000 # Total simulation time (s)
+x = 0.1 # Position in Packed Bed (cm) [Use 0.1 for inlet, 8 for outlet, or any value in between for intermediate positions]
+
+simulate = "bed" # Set to "bed" to run analysis of the packed bed, or "grain" to run the grain model
 
 # --- Derived Parameters ---
 V_bed = np.pi * r_bed**2 * z_bed  # Packed Bed Volume (cm^3)
 A_internal = fr * (4 * np.pi * r_p**3)*(1-porosity_pellet)/r_g # Internal Surface Area per Pellet (cm^2)
 A_external = 4 * np.pi * r_p**2 # External Surface Area per Pellet (cm^2)
 V_pore = (4/3) * np.pi * r_p**3 * porosity_pellet # Pore Volume per Pellet (cm^3)
-N_pellets = V_bed*packing_density / (4/3 * np.pi * r_p**3) # Number of Pellets in Packed Bed
+N_pellets = (V_bed*packing_density) / (4/3 * np.pi * r_p**3) # Number of Pellets in Packed Bed
 V_gas = V_bed * (1 - packing_density) # Gas Volume in Packed Bed (cm^3)
 Sv = fr * (3*(1-porosity_pellet)/r_g) # Pellet Volumetric Specific Surface Area (cm^-1)
+grains_pellet = porosity_pellet*(((4/3) * np.pi * r_p**3)/((4/3) * np.pi * r_g**3))  # Grains per Pellet
+grains_cm3 = (packing_density / ((4/3) * np.pi * r_p**3))*grains_pellet  # Grains per cm³
 
 # --- Simulation Grid ---
 N = 10              # Number of radial nodes
-dr = r_g / N          # Radial step size (m)
+dr = r_g / N          # Radial step size (cm)
+M = 10              # Number of axial nodes (used when analysing packed bed)
+dz = z_bed / M          # Axial step size (cm) (used when analysing packed bed)
 
-# To ensure stability, we must calculate the max possible time step
-# For the interior nodes, the criterion is dt <= 0.5 * dr^2 / D
-# For the surface node, it's dt <= 1 / (2*D/dr^2 + 2*hm/dr)
-# We take the most restrictive (smallest) of these.
-max_dt_interior = 0.5 * dr**2 / D
-max_dt_boundary = 1 / (2 * D / dr**2 + 2 * h_grain / dr)
-dt = min(max_dt_interior, max_dt_boundary) * 0.5 # Use 50% of max for safety
-
+dt = 3              # Time step size (s) (Reduce if simulation is unstable)
 n_time_steps = int(total_sim_time / dt)
-
-
 
 # --- 2. INITIALIZE CONCENTRATION ARRAYS ---
 # Create arrays to hold the concentration at each node
@@ -69,9 +70,11 @@ C_sparge = np.zeros(1)  # Sparge gas concentration array, initialized to zero
 
 # --- Data Storage for Plotting ---
 # store results at specific intervals to avoid saving massive arrays
-plot_interval = 10 # Save data for plots every 10 steps
+plot_interval = 100 # Save data for plots every 10 steps
 time_points = []
 inventory_history = []
+inventory_m_history = []
+inventory_t_history = []
 grain_flux_history = []
 pellet_flux_history = []
 C_pore_history = []
@@ -86,16 +89,20 @@ print(f"Pellet Radius: {r_p:.2e} cm")
 print(f"Pellet Internal Surface Area: {A_internal:.2e} cm2")
 print(f"Pellet External Surface Area: {A_external:.2e} cm2")
 print(f"Pellet Pore Volume: {V_pore:.2e} cm³")
+print(f"Packed Bed Volume: {V_bed:.2e} cm³")
 print(f"Number of Pellets: {N_pellets:.2f}")
 print(f"Sparge Gas Volume: {V_gas:.2e} cm³")
+
 print(f"Number of Nodes: {N}")
 print(f"Radial Step (dr): {dr:.2e} cm")
+
 print(f"Calculated Stable Time Step (dt): {dt:.3f} s")
 print(f"Total Simulation Time: {total_sim_time} s")
 print(f"Total Number of Time Steps: {n_time_steps}")
 print(f"------------------------\n")
 
 # --- 3. THE MAIN SIMULATION LOOP ---
+start_time = time.time()  # Start timer
 for step in range(n_time_steps):
     # Store a copy of the old concentrations to use in calculations
     Cm_old = Cm.copy()
@@ -119,7 +126,7 @@ for step in range(n_time_steps):
         # The standard part of the Laplacian
         laplacian_term = (Cm_old[i+1] - 2*Cm_old[i] + Cm_old[i-1]) / dr**2
         # The geometric part for spherical coordinates
-        geometric_term = 0 #(Cm_old[i+1] - Cm_old[i-1]) / (2 * r[i] * dr)
+        geometric_term = (1/r[i]) * (Cm_old[i+1] - Cm_old[i-1]) / dr
         
         # Combine terms
         dCm_dt_diffusion = D * (laplacian_term + geometric_term)
@@ -177,8 +184,14 @@ for step in range(n_time_steps):
         # For a proper average, we divide by the sum of weighted volumes.
         # But for total inventory, we sum the concentration in each shell's volume.
         # Volume of shell i is approx 4*pi*r[i]^2*dr
-        inventory = np.sum(total_conc * 4 * np.pi * r**2 * dr)
+        inventory = grains_cm3 * np.sum(total_conc * 4 * np.pi * r**2 * dr)
         inventory_history.append(inventory)
+
+        inventory_m = grains_cm3 * np.sum(Cm * 4 * np.pi * r**2 * dr)
+        inventory_m_history.append(inventory_m)
+
+        inventory_t = grains_cm3 * np.sum(Ct * 4 * np.pi * r**2 * dr)
+        inventory_t_history.append(inventory_t)
 
         # Calculate release flux from the grain surface
         grain_flux = h_grain * (Cm[N] - C_pore)
@@ -189,59 +202,107 @@ for step in range(n_time_steps):
         pellet_flux_history.append(grain_flux)
 
         # Calculate volumetric release rate from bed
-        bed_release_rate = J_pellet * A_external * (packing_density / ((4/3) * np.pi * r_p**3))
+        bed_release_rate = J_pellet * A_external * (packing_density / ((4/3) * np.pi * r_p**3)) * decay_constant
         bed_release_rate_history.append(bed_release_rate)
 
         # Store the mobile concentration profile at this time step
         Cm_history.append(Cm.copy())
 
+        # Store pore and sparge gas concentrations for plotting
+        C_pore_history.append(C_pore[0])
+        C_sparge_history.append(C_sparge[0])
+
         # Print a progress update to the console
         if step % (n_time_steps / 20) < plot_interval: # Print ~10 updates
              print(f"Time: {current_time:.0f} s ({step/n_time_steps*100:.0f}%) | "
-                   f"Surface Conc: {Cm[N]:.2e} atoms/cm^3 | "
-                   f"Total Inventory: {inventory:.2e} atoms/grain")
+                   f"Surface Conc: {Cm[N]:.2e} T/cm^3 | "
+                   f"Total Inventory: {inventory:.2e} T/cm3")
+             
+# Calculate cumulative release per cm³ (time integral of bed release rate)
+cumulative_release_history =  np.cumsum(bed_release_rate_history) * plot_interval * dt             
+
 Cm_history = np.array(Cm_history)  # Convert to numpy array for easier indexing
 
 
 # --- 5. PLOT THE RESULTS ---
 plt.style.use('seaborn-v0_8-darkgrid')
-fig, axes = plt.subplots(1, 3, figsize=(14, 15))
+fig, axes = plt.subplots(2, 3, figsize=(14, 12))
 fig.suptitle('Tritium Transport Simulation Results', fontsize=16)
 
 # --- Flatten the axes array for easier indexing ---
 axes = axes.flatten()
 
-# --- b) Total Inventory Over Time (Top-Right) ---
-axes[0].plot(time_points, inventory_history, color='green')
-axes[0].set_xlabel('Time (s)')
-axes[0].set_ylabel('Total Tritium Inventory (atoms)')
-axes[0].set_title('Total Inventory (atoms) Over Time')
-axes[0].axvspan(0, t_irr, color='red', alpha=0.3, label='Irradiation Period')
+# Convert time_points to days for plotting
+plot_time_days = np.array(time_points) / 86400
+
+# --- b) Total Inventory Over Time (Top-Left) ---
+axes[0].plot(plot_time_days, inventory_history, color='green', label='Total Inventory')
+axes[0].plot(plot_time_days, inventory_m_history, color='blue', linestyle='--', label='Mobile Inventory')
+axes[0].plot(plot_time_days, inventory_t_history, color='orange', linestyle='--', label='Trapped Inventory')
+axes[0].set_xlabel('Time (days)')
+axes[0].set_ylabel('Tritium Inventory Concentration (T/cm³)')
+axes[0].set_title('Total Inventory Within Grain (T/cm³)')
+axes[0].yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
+axes[0].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+axes[0].axvspan(0, t_irr/86400, color='red', alpha=0.3, label='Irradiation Period')
 axes[0].legend()
 axes[0].grid(True)
 
-# --- c) Release Rate Over Time (Bottom-Left) ---
-axes[1].plot(time_points, bed_release_rate_history, color='purple')
-axes[1].set_xlabel('Time (s)')
-axes[1].set_ylabel('Packed bed release rate (atoms/cm3/s)')
+# --- c) Release Rate Over Time (Top-Right) ---
+axes[1].plot(plot_time_days, bed_release_rate_history, color='purple')
+axes[1].set_xlabel('Time (days)')
+axes[1].set_ylabel('Packed bed release rate (Bq/cm3/s)')
 axes[1].set_title('Tritium Release Rate from Packed Bed')
-axes[1].axvspan(0, t_irr, color='red', alpha=0.3)
+axes[1].axvspan(0, t_irr/86400, color='red', alpha=0.3)
 axes[1].grid(True)
 
-# --- e) Mobile Concentration at Nodes Over Time (Bottom-Right) ---
-# Use a colormap to automatically assign different colors to each node's line
-colors = plt.cm.viridis(np.linspace(0, 1, N + 1))
-for i in range(N + 1):
-    # Transpose Cm_history so each row is a node's history
-    axes[2].plot(time_points, Cm_history[:, i], color=colors[i], label=f'Node {i}')
-axes[2].set_xlabel('Time (s)')
-axes[2].set_ylabel('Mobile Concentration (atoms/cm³)')
-axes[2].set_title('Mobile Tritium Concentration at Nodes Over Time')
-axes[2].axvspan(0, t_irr, color='red', alpha=0.3, label='Irradiation Period')
-axes[2].legend(fontsize='small', ncol=2) # Add a legend
+# --- d) Pore & Sparge Gas Concentrations Over Time (Middle-Left) ---
+axes[2].plot(plot_time_days, C_pore_history, label='Pore Gas', color='blue')
+axes[2].plot(plot_time_days, C_sparge_history, label='Sparge Gas', color='orange')
+axes[2].set_xlabel('Time (days)')
+axes[2].set_ylabel('Concentration (T/cm³)')
+axes[2].set_title('Pore & Sparge Gas Concentrations Over Time')
+axes[2].yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
+axes[2].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+axes[2].axvspan(0, t_irr/86400, color='red', alpha=0.3)
+axes[2].legend()
 axes[2].grid(True)
 
-fig.tight_layout(rect=[0, 0, 1, 0.96])
-plt.show()            
+# --- e) Mobile Concentration Within Grain Over Time (Middle-Right) ---
+colors = plt.cm.viridis(np.linspace(0, 1, N + 1))
+for i in range(N + 1):
+    axes[3].plot(plot_time_days, Cm_history[:, i], color=colors[i], label=f"r={r[i]:.3f} cm")
+axes[3].set_xlabel('Time (days)')
+axes[3].set_ylabel('Mobile Concentration (T/cm³)')
+axes[3].set_title('Mobile Tritium Concentration Profile in Grain Over Time')
+axes[3].yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
+axes[3].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+axes[3].axvspan(0, t_irr/86400, color='red', alpha=0.3, label='Irradiation Period')
+axes[3].legend(fontsize='small', ncol=2)
+axes[3].grid(True)
 
-plt.style.use('seaborn-v0_8-darkgrid')
+# --- e) Cumulative Release per cm³ Over Time (Bottom-Left) ---
+axes[4].plot(plot_time_days, cumulative_release_history, color='red')
+# Find the time where cumulative release reaches 99% of its final value
+final_cum_release = cumulative_release_history[-1]
+threshold = 0.99 * final_cum_release
+idx_99 = np.argmax(cumulative_release_history >= threshold)
+time_99 = time_points[idx_99]
+release_99 = cumulative_release_history[idx_99]
+axes[4].axvline(time_99/86400, color='black', linestyle='--', label='99% Release Time')
+axes[4].annotate(f"99% at {time_99/86400:.2f} d", xy=(time_99/86400, release_99), xytext=(time_99/86400, 0.7*final_cum_release),
+                 arrowprops=dict(arrowstyle='->', color='black'), fontsize=10, color='black')
+axes[4].set_xlabel('Time (days)')
+axes[4].set_ylabel('Cumulative Release (Bq/cm³)')
+axes[4].set_title('Cumulative Tritium Release per cm³ Over Time')
+axes[4].axvspan(0, t_irr/86400, color='red', alpha=0.3, label='Irradiation Period')
+axes[4].legend(['Cumulative Release', '99% Release Time'])
+axes[4].grid(True)
+
+end_time = time.time()  # End timer
+print(f"\nTotal script runtime: {end_time - start_time:.2f} seconds")
+
+fig.tight_layout(rect=[0, 0, 1, 0.96])
+plt.show()
+
+

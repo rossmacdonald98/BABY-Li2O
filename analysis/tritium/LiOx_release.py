@@ -25,7 +25,8 @@ tbr = 2e-5          # Volumetric Tritium Breeding Ratio (T/n/cm^3)
 G = source_rate*tbr # Tritium Generation Rate (T/cm^3/s)
 
 # --- Gas & System Properties ---
-h_grain = 2.0e-7    # Grain-Pore Mass Transfer Coeff (cm/s)
+k_grain_ads = 1e-7  # Grain surface adsorption coeff
+k_grain_des = 1e-6  # Grain surface desorption coeff
 h_pellet = 2.0e-3   # Pore-Sparge Mass Transfer Coeff (cm/s)
 Q_sparge = 8.33e-1 # Sparge Flow Rate (cm^3/s)
 decay_constant = 1.785e-9 # Tritium Decay Constant (1/s)
@@ -44,7 +45,7 @@ A_external = 4 * np.pi * r_p**2 # External Surface Area per Pellet (cm^2)
 V_pore = (4/3) * np.pi * r_p**3 * porosity_pellet # Pore Volume per Pellet (cm^3)
 N_pellets = (V_bed*packing_density) / (4/3 * np.pi * r_p**3) # Number of Pellets in Packed Bed
 V_gas = V_bed * (1 - packing_density) # Gas Volume in Packed Bed (cm^3)
-Sv = fr * (3*(1-porosity_pellet)/r_g) # Pellet Volumetric Specific Surface Area (cm^-1)
+Sv = fr * (3*(1-porosity_pellet)/r_g) # Pellet Volumetric Specific Surface Area (cm^-1) (cm^2/cm^3)
 grains_pellet = porosity_pellet*(((4/3) * np.pi * r_p**3)/((4/3) * np.pi * r_g**3))  # Grains per Pellet
 grains_cm3 = (packing_density / ((4/3) * np.pi * r_p**3))*grains_pellet  # Grains per cm³
 
@@ -155,17 +156,22 @@ for step in range(n_time_steps):
     # --- c) Surface Node (i=N) ---
     # Uses the mass transfer boundary condition
     diffusion_in = 2 * D * (Cm_old[N-1] - Cm_old[N]) / dr**2
-    release_out =  h_grain * Sv * (Cm_old[N] - C_pore_old) # Release rate per cm^3 of porous pellet volume.
-    
+
     dCm_dt_trapping_surface = kt * Cm_old[N] * (Nt - Ct_old[N])
     dCm_dt_detrapping_surface = kd * Ct_old[N]
+
+    # Surface release rates
+    J_grain = (Cm_old[N] * k_grain_des - C_pore_old * k_grain_ads)  # Tritium release from grain surface (T/cm²/s)
+    J_pellet = h_pellet * (C_pore_old - C_sparge_old)  # Tritium release from pellet boundary (T/cm²/s)
+
+    release_out =  Sv * J_grain # Release rate per cm^3 of porous pellet volume.
+    
+
     
     Cm[N] = Cm_old[N] + (diffusion_in - release_out + G - dCm_dt_trapping_surface + dCm_dt_detrapping_surface) * dt
     Ct[N] = Ct_old[N] + (dCm_dt_trapping_surface - dCm_dt_detrapping_surface) * dt
 
-    # Surface release rates
-    J_grain = h_grain * (Cm_old[N] - C_pore_old)  # Tritium release from grain surface (T/cm²/s)
-    J_pellet = h_pellet * (C_pore_old - C_sparge_old)  # Tritium release from pellet boundary (T/cm²/s)
+
 
     # --- d) Pore Gas Concentration ---
     C_pore[0] = C_pore_old[0] + (dt / V_pore) * (J_grain * A_internal - J_pellet * A_external) 
@@ -195,13 +201,10 @@ for step in range(n_time_steps):
         inventory_t = grains_cm3 * np.sum(Ct * 4 * np.pi * r**2 * dr)
         inventory_t_history.append(inventory_t)
 
-        # Calculate release flux from the grain surface
-        grain_flux = h_grain * (Cm[N] - C_pore)
-        grain_flux_history.append(grain_flux)
+        grain_flux_history.append(J_grain)
         
         # Calculate release flux from the pellet surface
-        pellet_flux = h_pellet * (C_pore - C_sparge)
-        pellet_flux_history.append(grain_flux)
+        pellet_flux_history.append(J_pellet)
 
         # Calculate volumetric release rate from bed
         bed_release_rate = J_pellet * A_external * (packing_density / ((4/3) * np.pi * r_p**3)) * decay_constant

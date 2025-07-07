@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import time  # For timing the script
+import time 
 from matplotlib.ticker import ScalarFormatter
 
 
@@ -50,16 +50,16 @@ grains_cm3 = (packing_density / ((4/3) * np.pi * r_p**3))*grains_pellet  # Grain
 
 # --- Simulation Grid ---
 N = 10              # Number of radial nodes
-dr = r_g / N          # Radial step size (cm)
+dr = r_g / N        # Radial step size (cm)
 M = 10              # Number of axial nodes (used when analysing packed bed)
-dz = z_bed / M          # Axial step size (cm) (used when analysing packed bed)
+dz = z_bed / M      # Axial step size (cm) (used when analysing packed bed)
 
 dt = 3              # Time step size (s) (Reduce if simulation is unstable)
 n_time_steps = int(total_sim_time / dt)
 
 # --- 2. INITIALIZE CONCENTRATION ARRAYS ---
 # Create arrays to hold the concentration at each node
-# We use N+1 to have nodes from 0 to N inclusive
+# Use N+1 to have nodes from 0 to N inclusive
 r = np.linspace(0, r_g, N + 1)  # Radial positions of each node
 
 Cm = np.zeros(N + 1)  # Mobile concentration array, initialized to zero
@@ -70,7 +70,7 @@ C_sparge = np.zeros(1)  # Sparge gas concentration array, initialized to zero
 
 # --- Data Storage for Plotting ---
 # store results at specific intervals to avoid saving massive arrays
-plot_interval = 100 # Save data for plots every 10 steps
+plot_interval = 100 # Save data for plots every 100 steps
 time_points = []
 inventory_history = []
 inventory_m_history = []
@@ -112,16 +112,17 @@ for step in range(n_time_steps):
 
     # --- Update generation term G  ---
     if step*dt < t_irr:
-        # During irradiation, constant generation term
+        # During irradiation, constant generation term (in T/cm^3/s)
         G = source_rate * tbr
     else:
         # After irradiation, the generation term is zero
         G = 0
 
     # --- Calculate new concentrations for each node ---
+    # Concentrations are in T/cm^3
 
     # --- a) Interior Nodes (1 to N-1) ---
-    # Using the more accurate spherical coordinate formula
+    # Using the more accurate spherical coordinate formula for concentration curvature
     for i in range(1, N):
         # The standard part of the Laplacian
         laplacian_term = (Cm_old[i+1] - 2*Cm_old[i] + Cm_old[i-1]) / dr**2
@@ -131,6 +132,7 @@ for step in range(n_time_steps):
         # Combine terms
         dCm_dt_diffusion = D * (laplacian_term + geometric_term)
         
+        # Trapping terms
         dCm_dt_trapping = kt * Cm_old[i] * (Nt - Ct_old[i])
         dCm_dt_detrapping = kd * Ct_old[i]
 
@@ -141,7 +143,7 @@ for step in range(n_time_steps):
         Ct[i] = Ct_old[i] + (dCm_dt_trapping - dCm_dt_detrapping) * dt
 
     # --- b) Center Node (i=0) ---
-    # Uses the special formula for r=0 in spherical coordinates
+    # Uses special formula for r=0 in spherical coordinates
     dCm_dt_diffusion_center = 6 * D * (Cm_old[1] - Cm_old[0]) / dr**2
     dCm_dt_trapping_center = kt * Cm_old[0] * (Nt - Ct_old[0])
     dCm_dt_detrapping_center = kd * Ct_old[0]
@@ -153,7 +155,7 @@ for step in range(n_time_steps):
     # --- c) Surface Node (i=N) ---
     # Uses the mass transfer boundary condition
     diffusion_in = 2 * D * (Cm_old[N-1] - Cm_old[N]) / dr**2
-    release_out =  h_grain * Sv * (Cm_old[N] - C_pore_old)
+    release_out =  h_grain * Sv * (Cm_old[N] - C_pore_old) # Release rate per cm^3 of porous pellet volume.
     
     dCm_dt_trapping_surface = kt * Cm_old[N] * (Nt - Ct_old[N])
     dCm_dt_detrapping_surface = kd * Ct_old[N]
@@ -162,8 +164,8 @@ for step in range(n_time_steps):
     Ct[N] = Ct_old[N] + (dCm_dt_trapping_surface - dCm_dt_detrapping_surface) * dt
 
     # Surface release rates
-    J_grain = h_grain * (Cm_old[N] - C_pore_old)  # Tritium release from grain surface (atoms/cm²/s)
-    J_pellet = h_pellet * (C_pore_old - C_sparge_old)  # Tritium release from pellet surface (atoms/cm²/s)
+    J_grain = h_grain * (Cm_old[N] - C_pore_old)  # Tritium release from grain surface (T/cm²/s)
+    J_pellet = h_pellet * (C_pore_old - C_sparge_old)  # Tritium release from pellet boundary (T/cm²/s)
 
     # --- d) Pore Gas Concentration ---
     C_pore[0] = C_pore_old[0] + (dt / V_pore) * (J_grain * A_internal - J_pellet * A_external) 

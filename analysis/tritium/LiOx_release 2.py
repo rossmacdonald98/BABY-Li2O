@@ -6,37 +6,26 @@ from matplotlib.ticker import ScalarFormatter
 
 # --- 1. PHYSICAL AND SIMULATION PARAMETERS ---
 
-# --- Grain, Pellet & Packed Bed Properties ---
-r_g = 0.01          # Average Grain Radius (cm)
-r_p = 0.3           # Pellet Radius (cm)
-fr = 0.8            # Surface Area Reduction Factor (accounts for necking)
-porosity_pellet = 0.2  # Pellet porosity (void fraction, ε)
-packing_density = 0.62 # Packing efficiency for random spheres (φ)
-r_bed = 6.5          # Packed Bed Radius (cm)
-z_bed = 8         # Packed Bed Height (cm)
+# --- Grain Properties ---
+a = 0.01          # Grain Radius (cm)
 
-# --- Diffusion, Trapping & Generation Properties ---
+# --- Diffusion & Generation Properties ---
 D = 1.0e-10          # Intrinsic Diffusion Coefficient (cm^2/s)
-kt = 1.0e-24        # Trapping Coefficient (cm^3/(atom*s))
-kd = 1.0e-3         # Detrapping Coefficient (1/s)
-Nt = 1.0e20         # Trapping Site Density (sites/cm^3)
 source_rate = 1e8   # Tritium Source Rate (T/s)
 tbr = 2e-5          # Volumetric Tritium Breeding Ratio (T/n/cm^3)
 G = source_rate*tbr # Tritium Generation Rate (T/cm^3/s)
 
 # --- Gas & System Properties ---
-k_grain_ads = 5e-7  # Grain surface adsorption coeff
-k_grain_des = 1e-7  # Grain surface desorption coeff
-h_pellet = 2.0e-3   # Pore-Sparge Mass Transfer Coeff (cm/s)
+kd = 1.0e-3         # Desorption Coefficient 
+
 Q_sparge = 8.33e-1 # Sparge Flow Rate (cm^3/s)
 decay_constant = 1.785e-9 # Tritium Decay Constant (1/s)
 
 # --- Simulation Parameters ---
 t_irr = 3600 # Irradiation Time (s)
 total_sim_time = 2000000 # Total simulation time (s)
-x = 0.1 # Position in Packed Bed (cm) [Use 0.1 for inlet, 8 for outlet, or any value in between for intermediate positions]
-
-simulate = "bed" # Set to "bed" to run analysis of the packed bed, or "grain" to run the grain model
+data_points = 1000 # Number of data points for plotting
+dt = total_sim_time / data_points  # Time step (s)
 
 # --- Derived Parameters ---
 V_bed = np.pi * r_bed**2 * z_bed  # Packed Bed Volume (cm^3)
@@ -51,27 +40,16 @@ grains_cm3 = (packing_density / ((4/3) * np.pi * r_p**3))*grains_pellet  # Grain
 
 # --- Simulation Grid ---
 N = 10              # Number of radial nodes
-dr = r_g / N        # Radial step size (cm)
-M = 10              # Number of axial nodes (used when analysing packed bed)
-dz = z_bed / M      # Axial step size (cm) (used when analysing packed bed)
-
-dt = 3              # Time step size (s) (Reduce if simulation is unstable)
-n_time_steps = int(total_sim_time / dt)
+dr = a / N        # Radial step size (cm)
 
 # --- 2. INITIALIZE CONCENTRATION ARRAYS ---
 # Create arrays to hold the concentration at each node
 # Use N+1 to have nodes from 0 to N inclusive
 r = np.linspace(0, r_g, N + 1)  # Radial positions of each node
 
-Cm = np.zeros(N + 1)  # Mobile concentration array, initialized to zero
-Ct = np.zeros(N + 1)  # Trapped concentration array, initialized to zero
-
-C_pore = np.zeros(1)  # Pore gas concentration array, initialized to zero
-C_sparge = np.zeros(1)  # Sparge gas concentration array, initialized to zero
+C = np.zeros(N + 1)  # Tritium concentration array, initialized to zero
 
 # --- Data Storage for Plotting ---
-# store results at specific intervals to avoid saving massive arrays
-plot_interval = 100 # Save data for plots every 100 steps
 time_points = []
 inventory_history = []
 inventory_m_history = []
@@ -85,31 +63,20 @@ bed_release_rate_history = []
 
 
 print(f"--- Simulation Setup ---")
-print(f"Grain Radius: {r_g:.2e} cm")
-print(f"Pellet Radius: {r_p:.2e} cm")
-print(f"Pellet Internal Surface Area: {A_internal:.2e} cm2")
-print(f"Pellet External Surface Area: {A_external:.2e} cm2")
-print(f"Pellet Pore Volume: {V_pore:.2e} cm³")
-print(f"Packed Bed Volume: {V_bed:.2e} cm³")
-print(f"Number of Pellets: {N_pellets:.2f}")
-print(f"Sparge Gas Volume: {V_gas:.2e} cm³")
+print(f"Grain Radius: {a:.2e} cm")
+print(f"Diffusion Coefficient (D): {D:.2e} cm²/s")
+print(f"Desorption Coefficient (kd): {kd:.2e} cm³/s")
+print(f"Generation Rate (G): {G:.2e} T/cm³/s")
 
 print(f"Number of Nodes: {N}")
 print(f"Radial Step (dr): {dr:.2e} cm")
 
-print(f"Calculated Stable Time Step (dt): {dt:.3f} s")
-print(f"Total Simulation Time: {total_sim_time} s")
-print(f"Total Number of Time Steps: {n_time_steps}")
+
 print(f"------------------------\n")
 
 # --- 3. THE MAIN SIMULATION LOOP ---
 start_time = time.time()  # Start timer
-for step in range(n_time_steps):
-    # Store a copy of the old concentrations to use in calculations
-    Cm_old = Cm.copy()
-    Ct_old = Ct.copy()
-    C_pore_old = C_pore.copy()
-    C_sparge_old = C_sparge.copy()
+for step in range(data_points):
 
     # --- Update generation term G  ---
     if step*dt < t_irr:

@@ -11,7 +11,7 @@ from matplotlib.ticker import ScalarFormatter
 a = 0.01          # Grain Radius (cm)
 
 # --- Diffusion & Generation Properties ---
-D = 1.0e-16          # Intrinsic Diffusion Coefficient (cm^2/s)
+D = 1.0e-8          # Intrinsic Diffusion Coefficient (cm^2/s)
 source_rate = 1e8    # Tritium Source Rate (T/s)
 tbr = 2e-5           # Volumetric Tritium Breeding Ratio (T/n/cm^3)
 G_active = source_rate*tbr # Tritium Generation Rate when source on (T/cm^3/s)
@@ -28,6 +28,8 @@ t_release = 3600 * 15 # Duration of Phase 2 (generation is off) [s]
 data_points_irr = 100 # Number of data points for irradiation phase
 data_points_release = 1000 # Number of data points for release phase
 
+roots_tolerance = 1e-2  # Tolerance for root finding
+
 t_irr_phase = np.linspace(0, t_irradiate, data_points_irr)
 t_release_phase = np.linspace(0, t_release, data_points_release)
 
@@ -38,35 +40,27 @@ h = kd / D
 
 # --- 2. Functions ---
 
-def solve_transcendental_equation(roots_to_find, a, h):
+def solve_transcendental_equation(roots_to_find, a, h, tolerance):
     """
     Numerically finds the first n roots of the transcendental equation:
     a*alpha*cot(a*alpha) = 1 - a*h
     
-    This version uses the brentq bracketing method for improved stability.
+    .
     """
-    # Define the function for the root-finding algorithm.
-    # We want to find alpha where f(alpha) = 0.
-    equation = lambda alpha: a * alpha / np.tan(a * alpha) - (1 - a * h)
-    
+    LHS = 1 - a*h  # Left-hand side constant for the equation
+
+    roots_found = 0
     roots = []
-    # The roots are located between the poles of the cotangent function,
-    # which occur at n*pi/a. We can search for each root in its bracket.
-    for n in range(1, roots_to_find + 1):
-        # Define the search interval for the nth root.
-        # Add a small epsilon to avoid the exact pole locations.
-        epsilon = 1e-10
-        lower_bound = (n - 1) * np.pi / a + epsilon
-        upper_bound = n * np.pi / a - epsilon
-        
-        try:
-            # Use brentq to find the root within the bracket [lower, upper].
-            root = brentq(equation, lower_bound, upper_bound)
-            roots.append(root)
-        except ValueError:
-            # This can happen if the function doesn't cross zero in the interval.
-            print(f"Warning: Could not find a root in the interval for n={n}")
-            break
+    i = 0
+    while roots_found < roots_to_find:
+        alpha = (i * tolerance)
+        RHS = a * alpha * 1 / np.tan(a * alpha)  # Right-hand side for the equation
+        if np.abs(RHS - LHS) < tolerance:
+            roots.append(alpha)
+            print(f"Root found: alpha = {alpha:.4f}, RHS = {RHS:.4e}, LHS = {LHS:.4e}")
+            roots_found += 1
+        print(f"Checking alpha = {alpha:.4f}, RHS = {RHS:.4e}, LHS = {LHS:.4e}, Residual = {np.abs(RHS - LHS):.2e}")
+        i = i + 1
             
     return np.array(roots)
 
@@ -103,7 +97,7 @@ def calculate_release_rate(t, G1, G2, t1, a, D, h, roots):
 start_time = time.time()
 
 print("Finding roots of the transcendental equation...")
-alpha_roots = solve_transcendental_equation(roots_to_find, a, h)
+alpha_roots = solve_transcendental_equation(roots_to_find, a, h, roots_tolerance)
 print(f"Found {len(alpha_roots)} roots.")
 print(alpha_roots)
 

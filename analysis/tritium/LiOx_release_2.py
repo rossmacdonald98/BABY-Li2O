@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import time 
-from scipy.optimize import fsolve
+from scipy.optimize import brentq
 from matplotlib.ticker import ScalarFormatter
 
 

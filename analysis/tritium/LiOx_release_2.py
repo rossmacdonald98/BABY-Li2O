@@ -42,21 +42,33 @@ def solve_transcendental_equation(roots_to_find, a, h):
     """
     Numerically finds the first n roots of the transcendental equation:
     a*alpha*cot(a*alpha) = 1 - a*h
+    
+    This version uses the brentq bracketing method for improved stability.
     """
     # Define the function for the root-finding algorithm.
     # We want to find alpha where f(alpha) = 0.
     equation = lambda alpha: a * alpha / np.tan(a * alpha) - (1 - a * h)
     
-    # The roots are roughly spaced by pi/a. We use this to provide
-    # good initial guesses for the fsolve function.
-    # The previous guess landed on poles of tan(), causing numerical instability.
-    # This new guess is slightly offset to provide a stable starting point.
-    initial_guesses = [(n + 0.01) * np.pi / a for n in range(1, roots_to_find + 1)]
-    
-    # Use SciPy's fsolve to find the roots from the initial guesses.
-    roots = fsolve(equation, initial_guesses)
-    
-    return roots
+    roots = []
+    # The roots are located between the poles of the cotangent function,
+    # which occur at n*pi/a. We can search for each root in its bracket.
+    for n in range(1, roots_to_find + 1):
+        # Define the search interval for the nth root.
+        # Add a small epsilon to avoid the exact pole locations.
+        epsilon = 1e-10
+        lower_bound = (n - 1) * np.pi / a + epsilon
+        upper_bound = n * np.pi / a - epsilon
+        
+        try:
+            # Use brentq to find the root within the bracket [lower, upper].
+            root = brentq(equation, lower_bound, upper_bound)
+            roots.append(root)
+        except ValueError:
+            # This can happen if the function doesn't cross zero in the interval.
+            print(f"Warning: Could not find a root in the interval for n={n}")
+            break
+            
+    return np.array(roots)
 
 def calculate_release_rate(t, G1, G2, t1, a, D, h, roots):
     """

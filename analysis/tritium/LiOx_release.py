@@ -50,8 +50,6 @@ grains_cm3 = (packing_density / ((4/3) * np.pi * r_p**3))*grains_pellet  # Grain
 # --- Simulation Grid ---
 N = 10              # Number of radial nodes
 dr = r_g / N        # Radial step size (cm)
-M = 10              # Number of axial nodes (used when analysing packed bed)
-dz = z_bed / M      # Axial step size (cm) (used when analysing packed bed)
 
 dt = 3              # Time step size (s) (Reduce if simulation is unstable)
 n_time_steps = int(total_sim_time / dt)
@@ -95,7 +93,7 @@ print(f"Sparge Gas Volume: {V_gas:.2e} cm³")
 print(f"Number of Nodes: {N}")
 print(f"Radial Step (dr): {dr:.2e} cm")
 
-print(f"Calculated Stable Time Step (dt): {dt:.3f} s")
+print(f"Time Step (dt): {dt:.3f} s")
 print(f"Total Simulation Time: {total_sim_time} s")
 print(f"Total Number of Time Steps: {n_time_steps}")
 print(f"------------------------\n")

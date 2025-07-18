@@ -25,8 +25,8 @@ tbr = 2e-5          # Volumetric Tritium Breeding Ratio (T/n/cm^3)
 G = source_rate*tbr # Tritium Generation Rate (T/cm^3/s)
 
 # --- Gas & System Properties ---
-k_grain_ads = 5e-7  # Grain surface adsorption coeff
-k_grain_des = 1e-7  # Grain surface desorption coeff
+k_grain_ads = 5e-8  # Grain surface adsorption coeff
+k_grain_des = 5e-7  # Grain surface desorption coeff
 h_pellet = 2.0e-3   # Pore-Sparge Mass Transfer Coeff (cm/s)
 Q_sparge = 8.33e-1 # Sparge Flow Rate (cm^3/s)
 decay_constant = 1.785e-9 # Tritium Decay Constant (1/s)
@@ -35,8 +35,6 @@ decay_constant = 1.785e-9 # Tritium Decay Constant (1/s)
 t_irr = 3600 # Irradiation Time (s)
 total_sim_time = 2000000 # Total simulation time (s)
 x = 0.1 # Position in Packed Bed (cm) [Use 0.1 for inlet, 8 for outlet, or any value in between for intermediate positions]
-
-simulate = "bed" # Set to "bed" to run analysis of the packed bed, or "grain" to run the grain model
 
 # --- Derived Parameters ---
 V_bed = np.pi * r_bed**2 * z_bed  # Packed Bed Volume (cm^3)

@@ -1,15 +1,33 @@
+# -----------------------------------------------------------------------------
+# Tritium Transport Simulation in a Packed Bed (Plug Flow Model)
+#
+# This script simulates the generation, transport, trapping, and release of
+# tritium in a packed bed of a sintered ceramic pellet breeder material,
+#  such as Li2O, under neutron irradiation. The model includes:
+#   - Tritium generation within grains due to neutron irradiation.
+#   - Diffusion and trapping/detrapping of tritium in grains.
+#   - Mass transfer between solid, pore, and sparge gas phases.
+#   - Axial transport of tritium in the sparge gas along the packed bed.
+#   - Calculation of inventories, release rates, and concentration profiles.
+#
+# The simulation uses a finite difference approach with discretization in both
+# radial (grain) and axial (bed) directions. Results are visualized in several
+# plots, including total inventory, release rates, outlet concentrations, axial
+# profiles, and mass balance verification.
+#
+# -----------------------------------------------------------------------------
+
 import numpy as np
 import matplotlib.pyplot as plt
 import time 
-
 
 # --- 1. PHYSICAL AND SIMULATION PARAMETERS ---
 
 # --- Grain, Pellet & Packed Bed Properties ---
 r_g = 0.01          # Average Grain Radius (cm)
 r_p = 0.3           # Pellet Radius (cm)
-fr = 0.8            # Surface Area Reduction Factor (accounts for necking)
 porosity_pellet = 0.2  # Pellet porosity (void fraction, ε)
+fr = (1 - porosity_pellet)^10           # Surface Area Reduction Factor (accounts for necking due to sintering between grains)
 packing_density = 0.62 # Packing efficiency for random spheres (φ)
 r_bed = 6.5          # Packed Bed Radius (cm)
 z_bed = 8         # Packed Bed Length (cm)
@@ -31,7 +49,7 @@ Q_sparge = 8.33e-1 # Sparge Flow Rate (cm^3/s)
 decay_constant = 1.785e-9 # Tritium Decay Constant (1/s)
 
 # --- Simulation Parameters ---
-t_irr = 7200 # Irradiation Time (s)
+t_irr = 500000 # Irradiation Time (s)
 total_sim_time = 500000 # Total simulation time (s)
 dt = 0.5 # User-defined time step
 
@@ -81,7 +99,7 @@ J_grain = np.zeros(Nz)
 J_pellet = np.zeros(Nz)
 
 # --- Data Storage for Plotting ---
-plot_interval = 100
+plot_interval = 500
 time_points = []
 total_inventory_history = []
 bed_release_rate_history = []
@@ -90,6 +108,20 @@ Cm_history = []
 C_sparge_profile_history = {}
 total_generated_history = []
 cumulative_release_history = []
+
+# --- Key times for sparge profile sampling ---
+key_times = [
+    0,
+    t_irr / 4,
+    t_irr / 2,
+    3 * t_irr / 4,
+    t_irr
+]
+# Five equally spaced times after irradiation
+post_irr_times = np.linspace(t_irr, total_sim_time, 6)[1:]  # skip t_irr, already included
+key_times += list(post_irr_times)
+key_times = np.array(key_times)
+key_time_tol = (dt*plot_interval) / 2  # tolerance for time comparison
 
 print(f"--- Simulation Setup ---")
 print(f"Time Step (dt): {dt:.3f} s, Total Steps: {n_time_steps}")
@@ -182,12 +214,17 @@ for step in range(n_time_steps):
         # Other histories
         C_sparge_outlet_history.append(C_sparge[Nz-1])
         Cm_history.append(Cm[0, :].copy())
-        if step == 0 or abs(current_time - t_irr) < dt or abs(current_time - total_sim_time/2) < dt or step == n_time_steps - 1:
-            C_sparge_profile_history[f'{current_time/3600:.1f} hr'] = C_sparge.copy()
+        # Only sample sparge profile at key times
+        for key_time in key_times:
+            if  abs(current_time - key_time) < key_time_tol:
+                C_sparge_profile_history[f'{current_time/3600:.1f} hr'] = C_sparge.copy()
 
         # Print progress update to the console
         if n_time_steps > 20 and step % (n_time_steps / 20) < plot_interval: # Print ~20 updates
              print(f"  Progress: {step/n_time_steps*100:3.0f}%  |  Time: {current_time/3600:5.1f} hr / {total_sim_time/3600:5.1f} hr")
+
+
+
 
 
 # --- 5. PLOT THE RESULTS ---
@@ -227,8 +264,11 @@ axes[2].legend()
 axes[2].grid(True)
 
 # d) Sparge Gas Axial Profile
+colors = plt.cm.viridis(np.linspace(0, 1, len(key_times) + 1))
+i=0
 for label, profile in C_sparge_profile_history.items():
-    axes[3].plot(z, profile, label=label)
+    i += 1
+    axes[3].plot(z, profile, color=colors[i], label=label)
 axes[3].set_xlabel('Axial Position (z) in Packed Bed (cm)')
 axes[3].set_ylabel('Sparge Gas Concentration (T/cm³)')
 axes[3].set_title('Sparge Gas Concentration Axial Profile')
@@ -237,8 +277,8 @@ axes[3].legend()
 axes[3].grid(True)
 
 # e) Mobile Concentration Within Grain
-colors = plt.cm.viridis(np.linspace(0, 1, N + 1))
 Cm_history = np.array(Cm_history)
+colors = plt.cm.viridis(np.linspace(0, 1, N + 1))
 for i in range(N + 1):
     axes[4].plot(plot_time_days, Cm_history[:, i], color=colors[i], label=f"r={r[i]:.3f} cm")
 axes[4].set_xlabel('Time (days)')
@@ -266,4 +306,5 @@ axes[5].legend()
 
 plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 plt.show()
-
+run_time = time.time() - start_time
+print(f"\n--- Simulation Completed in {run_time:.2f} seconds ---")

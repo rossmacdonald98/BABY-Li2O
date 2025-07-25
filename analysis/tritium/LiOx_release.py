@@ -53,7 +53,7 @@ t_irr = 7200 # Irradiation Time (s)
 total_sim_time = 500000 # Total simulation time (s)
 min_dt = 1e-5 # Min timestep for adaptive time-stepping (s)
 dt = min_dt # Initial timestep (s)
-allowed_change = 0.1 # Maximum relative change allowed in any variable per step
+allowed_change = 0.15 # Maximum relative change allowed in any variable per step
 
 # --- Simulation Grid ---
 # Radial grid for the grain model

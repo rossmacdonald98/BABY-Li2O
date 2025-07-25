@@ -27,31 +27,33 @@ import time
 r_g = 0.01          # Average Grain Radius (cm)
 r_p = 0.3           # Pellet Radius (cm)
 porosity_pellet = 0.2  # Pellet porosity (void fraction, ε)
-fr = (1 - porosity_pellet)^10           # Surface Area Reduction Factor (accounts for necking due to sintering between grains)
-packing_density = 0.62 # Packing efficiency for random spheres (φ)
+fr = (1 - porosity_pellet)**10  # Surface Area Reduction Factor (accounts for necking due to sintering between grains)
+packing_density = 0.62 # Pellet bed packing efficiency (0.62 = Packing efficiency for random spheres) (φ)
 r_bed = 6.5          # Packed Bed Radius (cm)
 z_bed = 8         # Packed Bed Length (cm)
 
 # --- Diffusion, Trapping & Generation Properties ---
-D = 1.0e-10          # Intrinsic Diffusion Coefficient (cm^2/s)
+D = 1.0e-10         # Diffusion Coefficient (cm^2/s)
 kt = 1.0e-24        # Trapping Coefficient (cm^3/(atom*s))
 kd = 1.0e-3         # Detrapping Coefficient (1/s)
 Nt = 1.0e20         # Trapping Site Density (sites/cm^3)
-source_rate = 1e8   # Neutron Source Rate (n/s)
-tbr = 5e-5          # Volumetric Tritium Breeding Ratio (T/n/cm^3)
+source_rate = 8e8   # Neutron Source Rate (n/s)
+tbr = 1e-5          # Volumetric Tritium Breeding Ratio (T/n/cm^3)
 G_rate = source_rate*tbr # Tritium Generation Rate (T/cm^3/s)
 
 # --- Gas & System Properties ---
-k_grain_ads = 5e-7  # Grain surface adsorption coeff
-k_grain_des = 1e-7  # Grain surface desorption coeff
-h_pellet = 1e-3   # Pore-Sparge Mass Transfer Coeff (cm/s)
-Q_sparge = 8.33e-1 # Sparge Flow Rate (cm^3/s)
+k_grain_ads = 1e-9  # Grain surface adsorption coeff
+k_grain_des = 1e-5  # Grain surface desorption coeff
+h_pellet = 1e-3     # Pore-Sparge Mass Transfer Coeff (cm/s)
+Q_sparge = 8.33e-1  # Sparge Flow Rate (cm^3/s)
 decay_constant = 1.785e-9 # Tritium Decay Constant (1/s)
 
 # --- Simulation Parameters ---
-t_irr = 500000 # Irradiation Time (s)
+t_irr = 7200 # Irradiation Time (s)
 total_sim_time = 500000 # Total simulation time (s)
-dt = 0.5 # User-defined time step
+min_dt = 1e-5 # Min timestep for adaptive time-stepping (s)
+dt = min_dt # Initial timestep (s)
+allowed_change = 0.1 # Maximum relative change allowed in any variable per step
 
 # --- Simulation Grid ---
 # Radial grid for the grain model
@@ -63,8 +65,6 @@ r = np.linspace(0, r_g, N + 1)  # Radial positions of each node
 Nz = 15              # Number of axial nodes 
 dz = z_bed / Nz      # Axial step size (cm)
 z = np.linspace(dz/2, z_bed - dz/2, Nz)  # Axial positions of each node (center of each plug)
-
-n_time_steps = int(total_sim_time / dt)
 
 # --- Derived Parameters ---
 V_pellet = (4/3) * np.pi * r_p**3  # Pellet Volume (cm^3)
@@ -99,8 +99,11 @@ J_grain = np.zeros(Nz)
 J_pellet = np.zeros(Nz)
 
 # --- Data Storage for Plotting ---
-plot_interval = 500
+plot_interval = 50
 time_points = []
+data_intervals = []
+dt_history = []
+rel_change_history = []
 total_inventory_history = []
 bed_release_rate_history = []
 C_sparge_outlet_history = []
@@ -124,7 +127,6 @@ key_times = np.array(key_times)
 key_time_tol = (dt*plot_interval) / 2  # tolerance for time comparison
 
 print(f"--- Simulation Setup ---")
-print(f"Time Step (dt): {dt:.3f} s, Total Steps: {n_time_steps}")
 print(f'Estimated Total Tritium Produced: {T_est:.2e} Bq')
 print(f"------------------------\n")
 
@@ -132,13 +134,21 @@ print(f"------------------------\n")
 start_time = time.time()
 print("--- Starting Simulation ---")
 
-for step in range(n_time_steps):
+step = 0
+current_time = 0.0
+
+while current_time < total_sim_time:
+
+    # Update the current time in seconds
+    current_time =  dt + current_time
+    step += 1
+
     Cm_old = Cm.copy()
     Ct_old = Ct.copy()
     C_pore_old = C_pore.copy()
     C_sparge_old = C_sparge.copy()
 
-    G = G_rate if step * dt < t_irr else 0
+    G = G_rate if current_time < t_irr else 0
 
     for j in range(Nz):
         # Center Node (i=0)
@@ -175,6 +185,7 @@ for step in range(n_time_steps):
     source_term_0 = (J_pellet[0] * A_pellets_plug) / V_sparge_plug
     convection_term_0 = (-Q_sparge * C_sparge_old[0]) / V_sparge_plug
     C_sparge[0] = C_sparge_old[0] + dt * (source_term_0 + convection_term_0)
+
     for j in range(1, Nz):
         source_term = (J_pellet[j] * A_pellets_plug) / V_sparge_plug
         convection_term_in = (Q_sparge * C_sparge_old[j-1]) / V_sparge_plug
@@ -187,9 +198,12 @@ for step in range(n_time_steps):
 
     # --- 4. CALCULATE DERIVED QUANTITIES & STORE DATA ---
     if step % plot_interval == 0:
-        current_time = step * dt
         time_points.append(current_time)
-
+        if len(time_points) > 1:
+            data_intervals.append(time_points[-1] - time_points[-2]) 
+        else:
+            data_intervals.append(dt)
+        
         # Total Inventory (Solid + Pore Gas + Sparge Gas)
         solid_inventory = 0
         pore_inventory = 0
@@ -219,13 +233,44 @@ for step in range(n_time_steps):
             if  abs(current_time - key_time) < key_time_tol:
                 C_sparge_profile_history[f'{current_time/3600:.1f} hr'] = C_sparge.copy()
 
-        # Print progress update to the console
-        if n_time_steps > 20 and step % (n_time_steps / 20) < plot_interval: # Print ~20 updates
-             print(f"  Progress: {step/n_time_steps*100:3.0f}%  |  Time: {current_time/3600:5.1f} hr / {total_sim_time/3600:5.1f} hr")
+        # Store timestep and relative change history
+        rel_change_history.append(max_rel_change)
+        dt_history.append(dt)
+
+    # Print single-line progress
+    print(
+        f"Step: {step:6d} | {current_time/total_sim_time*100:6.2f}% | Time: {current_time/3600:5.1f} hr / {total_sim_time/3600:5.1f} hr | dt: {dt:.2e} s",
+        end='\r', flush=True
+    )
+
+    # --- Adaptive timestep logic ---
+    # Compute max relative change for key variables
+    max_rel_change = 0
+    for arr, arr_old in [
+        (Cm, Cm_old), (Ct, Ct_old),
+        (C_pore, C_pore_old), (C_sparge, C_sparge_old)
+    ]:
+        rel_change = np.abs(arr - arr_old) / (np.abs(arr_old) + 1e-12)
+        max_rel_change = max(max_rel_change, np.max(rel_change))
+
+    new_dt = dt  # Default to current dt
+
+    if max_rel_change > allowed_change and step > 1:
+    # Reduce timestep quickly if change exceeds threshold:
+        new_dt = 0.5 * dt
+    elif max_rel_change < allowed_change:
+    # Increase timestep slowly if change is below threshold
+        new_dt = 1.0005 * dt
+    
+    if abs(t_irr - current_time) < 0.1:
+        new_dt = min_dt # When near the end of irradiation, use minimum dt to ensure stability
+
+    dt = max(new_dt, min_dt)
 
 
 
-
+run_time = time.time() - start_time
+print(f"\n--- Simulation Completed in {run_time:.2f} seconds ---")
 
 # --- 5. PLOT THE RESULTS ---
 plt.style.use('seaborn-v0_8-darkgrid')
@@ -290,9 +335,9 @@ axes[4].legend(fontsize='small', ncol=2)
 axes[4].grid(True)
 
 # f) Mass Balance Check
-time_per_plot_interval = plot_interval * dt
-cumulative_release = np.cumsum(np.array(bed_release_rate_history) * time_per_plot_interval) * decay_constant  # Cumulative release (Bq)
+cumulative_release = np.cumsum(np.array(bed_release_rate_history) * data_intervals) * decay_constant  # Cumulative release (Bq)
 inventory_plus_release = np.array(total_inventory_history) + cumulative_release
+
 axes[5].plot(plot_time_days, total_generated_history, 'k--', label='Total Generated')
 axes[5].plot(plot_time_days, total_inventory_history, 'g-', label='Total Inventory')
 axes[5].plot(plot_time_days, cumulative_release, 'b--', label='Cumulative Release')
@@ -306,5 +351,28 @@ axes[5].legend()
 
 plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 plt.show()
-run_time = time.time() - start_time
-print(f"\n--- Simulation Completed in {run_time:.2f} seconds ---")
+
+# --- 6. PLOT TIMESTEP AND RELATIVE CHANGE HISTORY ---
+fig2, ax2 = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
+fig2.suptitle('Adaptive Timestep and Relative Change History', fontsize=15)
+
+# Plot dt_history
+ax2[0].plot(plot_time_days, dt_history, color='blue')
+ax2[0].set_ylabel('Timestep (s)')
+ax2[0].set_title('Adaptive Timestep (dt) vs Time')
+ax2[0].axvspan(0, t_irr/86400, color='red', alpha=0.2)
+ax2[0].grid(True)
+
+# Plot rel_change_history
+ax2[1].plot(plot_time_days, rel_change_history, color='red')
+ax2[1].set_xlabel('Time (days)')
+ax2[1].set_ylabel('Max Relative Change')
+ax2[1].set_title('Max Relative Change vs Time')
+ax2[1].axvspan(0, t_irr/86400, color='red', alpha=0.2)
+ax2[1].grid(True)
+
+plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+plt.show()
+
+
+

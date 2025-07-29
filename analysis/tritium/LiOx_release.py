@@ -50,7 +50,7 @@ decay_constant = 1.785e-9 # Tritium Decay Constant (1/s)
 
 # --- Simulation Parameters ---
 t_irr = 7200 # Irradiation Time (s)
-total_sim_time = 500000 # Total simulation time (s)
+total_sim_time = 100000 # Total simulation time (s)
 min_dt = 1e-5 # Min timestep for adaptive time-stepping (s)
 dt = min_dt # Initial timestep (s)
 allowed_change = 0.15 # Maximum relative change allowed in any variable per step
@@ -180,11 +180,12 @@ while current_time < total_sim_time:
         J_pellet[j] = h_pellet * (C_pore_old[j] - C_sparge_old[j])
         C_pore[j] = C_pore_old[j] + (dt * (J_grain[j] * A_internal - J_pellet[j] * A_external) / V_pore)
 
-    # Update sparge gas concentrations
+    # Update sparge gas concentrations at bed inlet
     source_term_0 = (J_pellet[0] * A_pellets_plug) / V_sparge_plug
     convection_term_0 = (-Q_sparge * C_sparge_old[0]) / V_sparge_plug
     C_sparge[0] = C_sparge_old[0] + dt * (source_term_0 + convection_term_0)
 
+    # Update sparge gas concentrations along the bed
     for j in range(1, Nz):
         source_term = (J_pellet[j] * A_pellets_plug) / V_sparge_plug
         convection_term_in = (Q_sparge * C_sparge_old[j-1]) / V_sparge_plug

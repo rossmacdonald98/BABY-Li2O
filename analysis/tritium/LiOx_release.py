@@ -124,7 +124,6 @@ key_times = [
 post_irr_times = np.linspace(t_irr, total_sim_time, 6)[1:]  # skip t_irr, already included
 key_times += list(post_irr_times)
 key_times = np.array(key_times)
-key_time_tol = (dt*plot_interval) / 2  # tolerance for time comparison
 
 print(f"--- Simulation Setup ---")
 print(f'Estimated Total Tritium Produced: {T_est:.2e} Bq')
@@ -197,6 +196,8 @@ while current_time < total_sim_time:
         break
 
     # --- 4. CALCULATE DERIVED QUANTITIES & STORE DATA ---
+    key_time_tol = (dt*plot_interval) / 2  # tolerance for time comparison
+
     if step % plot_interval == 0:
         time_points.append(current_time)
         if len(time_points) > 1:
@@ -257,7 +258,7 @@ while current_time < total_sim_time:
 
     if max_rel_change > allowed_change and step > 1:
     # Reduce timestep quickly if change exceeds threshold:
-        new_dt = 0.5 * dt
+        new_dt = 0.75 * dt
     elif max_rel_change < allowed_change:
     # Increase timestep slowly if change is below threshold
         new_dt = 1.0005 * dt
@@ -305,7 +306,7 @@ axes[2].set_ylabel('Concentration (T/cm³)')
 axes[2].set_title('Sparge Gas Concentration at Bed Outlet')
 axes[2].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
 axes[2].axvspan(0, t_irr/86400, color='red', alpha=0.3)
-axes[2].legend()
+axes[2].legend(loc='upper left')
 axes[2].grid(True)
 
 # d) Sparge Gas Axial Profile
@@ -328,7 +329,7 @@ for i in range(N + 1):
     axes[4].plot(plot_time_days, Cm_history[:, i], color=colors[i], label=f"r={r[i]:.3f} cm")
 axes[4].set_xlabel('Time (days)')
 axes[4].set_ylabel('Mobile Concentration (T/cm³)')
-axes[4].set_title('Mobile Tritium Concentration Profile in Grain Over Time, at Plug 0')
+axes[4].set_title('Mobile Tritium Concentration Profile in Grain Over Time, at Plug 0 (inlet)')
 axes[4].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
 axes[4].axvspan(0, t_irr/86400, color='red', alpha=0.3, label='Irradiation Period')
 axes[4].legend(fontsize='small', ncol=2)

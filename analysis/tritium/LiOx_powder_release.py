@@ -30,7 +30,7 @@ r_bed = 6.5          # Packed Bed Radius (cm)
 z_bed = 8         # Packed Bed Length (cm)
 
 # --- Diffusion, Trapping & Generation Properties ---
-D = 1.0e-10         # Diffusion Coefficient (cm^2/s)
+D = 1.0e-9         # Diffusion Coefficient (cm^2/s)
 kt = 1.0e-24        # Trapping Coefficient (cm^3/(atom*s))
 kd = 1.0e-3         # Detrapping Coefficient (1/s)
 Nt = 1.0e20         # Trapping Site Density (sites/cm^3)
@@ -46,7 +46,7 @@ decay_constant = 1.785e-9 # Tritium Decay Constant (1/s)
 
 # --- Simulation Parameters ---
 t_irr = 7200 # Irradiation Time (s)
-total_sim_time = 500000 # Total simulation time (s)
+total_sim_time = 1000000 # Total simulation time (s)
 min_dt = 1e-5 # Min timestep for adaptive time-stepping (s)
 dt = min_dt # Initial timestep (s)
 allowed_change = 0.25 # Maximum relative change allowed in any variable per step
@@ -58,7 +58,7 @@ dr = r_g / N        # Radial step size (cm)
 r = np.linspace(0, r_g, N + 1)  # Radial positions of each node
 
 # Axial grid for the packed bed model
-Nz = 15              # Number of axial nodes 
+Nz = 10              # Number of axial nodes 
 dz = z_bed / Nz      # Axial step size (cm)
 z = np.linspace(dz/2, z_bed - dz/2, Nz)  # Axial positions of each node (center of each plug)
 
@@ -166,18 +166,14 @@ while current_time < total_sim_time:
         Cm[j, N] = Cm_old[j, N] + (dCm_dt_diffusion_in - dCm_dt_surface_release_out + G - dCm_dt_trapping_surface + dCm_dt_detrapping_surface) * dt
         Ct[j, N] = Ct_old[j, N] + (dCm_dt_trapping_surface - dCm_dt_detrapping_surface) * dt
 
-        # Pore Gas Concentration
-        J_pellet[j] = h_pellet * (C_pore_old[j] - C_sparge_old[j])
-        C_pore[j] = C_pore_old[j] + (dt * (J_grain[j] * A_internal - J_pellet[j] * A_external) / V_pore)
-
     # Update sparge gas concentrations at bed inlet
-    source_term_0 = (J_pellet[0] * A_pellets_plug) / V_sparge_plug
+    source_term_0 = (J_grain[0] * A_grains_plug) / V_sparge_plug
     convection_term_0 = (-Q_sparge * C_sparge_old[0]) / V_sparge_plug
     C_sparge[0] = C_sparge_old[0] + dt * (source_term_0 + convection_term_0)
 
     # Update sparge gas concentrations along the bed
     for j in range(1, Nz):
-        source_term = (J_pellet[j] * A_pellets_plug) / V_sparge_plug
+        source_term = (J_grain[j] * A_grains_plug) / V_sparge_plug
         convection_term_in = (Q_sparge * C_sparge_old[j-1]) / V_sparge_plug
         convection_term_out = (Q_sparge * C_sparge_old[j]) / V_sparge_plug
         C_sparge[j] = C_sparge_old[j] + dt * (source_term + convection_term_in - convection_term_out)
@@ -203,10 +199,9 @@ while current_time < total_sim_time:
         for j in range(Nz):
             total_conc_grain = Cm[j, :] + Ct[j, :]
             inventory_grain = np.sum(total_conc_grain * 4 * np.pi * r**2 * dr) # Total Tritium in grains (atoms)
-            solid_inventory += inventory_grain * N_grains_pellet * N_pellets_plug * decay_constant # Solid phase inventory (Bq)
-            pore_inventory += C_pore[j] * V_pore * N_pellets_plug * decay_constant # Pore gas inventory (Bq)
+            solid_inventory += inventory_grain * N_grains_plug * decay_constant # Solid phase inventory (Bq)
             sparge_inventory += C_sparge[j] * V_sparge_plug * decay_constant # Sparge gas inventory (Bq)    
-        total_system_inventory = solid_inventory + pore_inventory + sparge_inventory # Total system inventory (Bq)
+        total_system_inventory = solid_inventory + sparge_inventory # Total system inventory (Bq)
         total_inventory_history.append(total_system_inventory)
 
         # Total Generated History
@@ -218,7 +213,6 @@ while current_time < total_sim_time:
         bed_release_rate_history.append(release_rate)
         
         # Other histories
-        C_pore_outlet_history.append(C_pore[Nz-1])
         C_sparge_outlet_history.append(C_sparge[Nz-1])
         Cm_history.append(Cm[0, :].copy())
         # Only sample sparge profile at key times
@@ -241,7 +235,7 @@ while current_time < total_sim_time:
     max_rel_change = 0
     for arr, arr_old in [
         (Cm, Cm_old), (Ct, Ct_old),
-        (C_pore, C_pore_old), (C_sparge, C_sparge_old)
+        (C_sparge, C_sparge_old)
     ]:
         rel_change = np.abs(arr - arr_old) / (np.abs(arr_old) + 1e-12)
         max_rel_change = max(max_rel_change, np.max(rel_change))
@@ -268,7 +262,7 @@ print(f"\n--- Simulation Completed in {run_time:.2f} seconds ---")
 # --- 5. PLOT THE RESULTS ---
 plt.style.use('seaborn-v0_8-darkgrid')
 fig, axes = plt.subplots(3, 2, figsize=(14, 12))
-fig.suptitle('Tritium Transport Simulation Results (Plug Flow Model)', fontsize=16)
+fig.suptitle('Powder Bed Tritium Transport Simulation Results (Plug Flow Model)', fontsize=16)
 axes = axes.flatten()
 plot_time_days = np.array(time_points) / 86400
 
@@ -293,10 +287,9 @@ axes[1].grid(True)
 
 # c) Sparge Gas Outlet Concentration
 axes[2].plot(plot_time_days, C_sparge_outlet_history, label='Outlet Sparge Gas', color='orange')
-axes[2].plot(plot_time_days, C_pore_outlet_history, label='Outlet Pore Gas', color='blue', linestyle='--')
 axes[2].set_xlabel('Time (days)')
 axes[2].set_ylabel('Concentration (T/cm³)')
-axes[2].set_title('Sparge Gas & Pore Gas Concentration at Bed Outlet')
+axes[2].set_title('Sparge Gas Concentration at Bed Outlet')
 axes[2].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
 axes[2].axvspan(0, t_irr/86400, color='red', alpha=0.3)
 axes[2].legend(loc='upper left')

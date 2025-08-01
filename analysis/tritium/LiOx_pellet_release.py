@@ -279,7 +279,7 @@ print(f"\n--- Simulation Completed in {run_time:.2f} seconds ---")
 # --- 5. PLOT THE RESULTS ---
 plt.style.use('seaborn-v0_8-darkgrid')
 fig, axes = plt.subplots(3, 2, figsize=(14, 12))
-fig.suptitle('Tritium Transport Simulation Results (Plug Flow Model)', fontsize=16)
+fig.suptitle('Pellet Bed Tritium Transport Simulation Results (Plug Flow Model)', fontsize=16)
 axes = axes.flatten()
 plot_time_days = np.array(time_points) / 86400
 

@@ -50,10 +50,10 @@ decay_constant = 1.785e-9 # Tritium Decay Constant (1/s)
 
 # --- Simulation Parameters ---
 t_irr = 7200 # Irradiation Time (s)
-total_sim_time = 100000 # Total simulation time (s)
+total_sim_time = 500000 # Total simulation time (s)
 min_dt = 1e-5 # Min timestep for adaptive time-stepping (s)
 dt = min_dt # Initial timestep (s)
-allowed_change = 0.15 # Maximum relative change allowed in any variable per step
+allowed_change = 0.25 # Maximum relative change allowed in any variable per step
 
 # --- Simulation Grid ---
 # Radial grid for the grain model
@@ -106,6 +106,7 @@ dt_history = []
 rel_change_history = []
 total_inventory_history = []
 bed_release_rate_history = []
+C_pore_outlet_history = []
 C_sparge_outlet_history = []
 Cm_history = []
 C_sparge_profile_history = {}
@@ -228,6 +229,7 @@ while current_time < total_sim_time:
         bed_release_rate_history.append(release_rate)
         
         # Other histories
+        C_pore_outlet_history.append(C_pore[Nz-1])
         C_sparge_outlet_history.append(C_sparge[Nz-1])
         Cm_history.append(Cm[0, :].copy())
         # Only sample sparge profile at key times
@@ -302,9 +304,10 @@ axes[1].grid(True)
 
 # c) Sparge Gas Outlet Concentration
 axes[2].plot(plot_time_days, C_sparge_outlet_history, label='Outlet Sparge Gas', color='orange')
+axes[2].plot(plot_time_days, C_pore_outlet_history, label='Outlet Pore Gas', color='blue', linestyle='--')
 axes[2].set_xlabel('Time (days)')
 axes[2].set_ylabel('Concentration (T/cm³)')
-axes[2].set_title('Sparge Gas Concentration at Bed Outlet')
+axes[2].set_title('Sparge Gas & Pore Gas Concentration at Bed Outlet')
 axes[2].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
 axes[2].axvspan(0, t_irr/86400, color='red', alpha=0.3)
 axes[2].legend(loc='upper left')

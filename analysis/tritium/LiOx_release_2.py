@@ -183,7 +183,7 @@ if __name__ == '__main__':
     # Simulation Parameters
     # User-defined timespan
     t_start = 0
-    t_end = 3600 * 200  # End time in seconds (e.g., 5 hours)
+    t_end = 3600 * 1000  # End time in seconds (e.g., 5 hours)
     n_steps = 200     # Number of time steps for the plot
     n_roots = 100     # Number of roots to calculate for the series solution
     
@@ -205,11 +205,10 @@ if __name__ == '__main__':
     print("Calculating release rate and inventory over time...")
     # Create a time array from t_start to t_end
     # We use a log space for time to better visualize the initial transient
-    time_array = np.logspace(np.log10(t_end/10000), np.log10(t_end), n_steps)
-    time_array = np.insert(time_array, 0, 0) # Add t=0
+    time_array = np.linspace(0, t_end, n_steps)
 
     # Create radial position array for calculating concentration profiles
-    radial_pos = np.linspace(0, a, 10) # Radial positions from grain center to edge
+    radial_pos = np.linspace(0, a, 20) # Radial positions from grain center to edge
 
     # Calculate concentration profiles at each time point
     concentration_profiles = np.array([[calculate_concentration(r, t, G, a, D, h, alpha_n) for r in radial_pos] for t in time_array])
@@ -229,16 +228,16 @@ if __name__ == '__main__':
     
     # Select a few time points to plot for clarity (e.g., 6 profiles)
     # We skip the t=0 profile as it's all zeros
-    num_profiles_to_plot = 6
+    num_profiles_to_plot = 10
     plot_indices = np.linspace(1, len(time_array) - 1, num=num_profiles_to_plot, dtype=int)
     
     for i in plot_indices:
         time_val_hours = time_array[i] / 3600
         # Plot concentration vs. normalized radius (r/a)
-        ax1.plot(radial_pos / a, concentration_profiles[i], marker='o', linestyle='-', label=f't = {time_val_hours:.2f} hours')
+        ax1.plot(radial_pos, concentration_profiles[i], marker='o', linestyle='-', label=f't = {time_val_hours:.2f} hours')
 
     ax1.set_title('Tritium Concentration Profiles in the Grain')
-    ax1.set_xlabel('Normalized Radius (r/a)')
+    ax1.set_xlabel('Radius r (m)')
     ax1.set_ylabel('Concentration (atoms/m³)')
     ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
     ax1.legend()

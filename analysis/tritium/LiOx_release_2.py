@@ -173,25 +173,28 @@ if __name__ == '__main__':
     # Physical Parameters (using illustrative values)
     # These should be changed to match the material and conditions of interest.
     a = 0.00025    # Grain radius (m), e.g., 20 micrometers
-    D = 1e-14      # Diffusivity (m^2/s)
+    D = 1e-13      # Diffusivity (m^2/s)
     K_d = 1e-8     # Desorption rate constant (m/s)
-    G = 1e19       # Tritium generation rate (atoms/m^3/s)
-    
     # Calculated parameter h
     h = K_d / D    # Ratio K_d/D (m^-1)
+
+    # Tritium generation rate (G) parameters
+    G1 = 1e19      # Initial tritium generation rate (atoms/m^3/s)
+    t_change = 3600 * 2 # Time of change in seconds (e.g., 2 hours)
+    G2 = 0         # Secondary tritium generation rate (atoms/m^3/s)
     
     # Simulation Parameters
     # User-defined timespan
     t_start = 0
-    t_end = 3600 * 1000  # End time in seconds (e.g., 5 hours)
-    n_steps = 200     # Number of time steps for the plot
+    t_end = 3600 * 200  # End time in seconds
+    n_steps = 5000     # Number of time steps for the plot
     n_roots = 100     # Number of roots to calculate for the series solution
     
     print("--- Model Parameters ---")
     print(f"Grain Radius (a): {a:.2e} m")
     print(f"Diffusivity (D): {D:.2e} m^2/s")
     print(f"Desorption Constant (K_d): {K_d:.2e} m/s")
-    print(f"Generation Rate (G): {G:.2e} atoms/m^3/s")
+    print(f"Generation Rate (G1): {G1:.2e} atoms/m^3/s")
     print(f"h (K_d/D): {h:.2e} m^-1")
     print("------------------------\n")
     
@@ -204,33 +207,70 @@ if __name__ == '__main__':
     # --- 3. CALCULATE RESULTS OVER TIME ---
     print("Calculating release rate and inventory over time...")
     # Create a time array from t_start to t_end
-    # We use a log space for time to better visualize the initial transient
-    time_array = np.linspace(0, t_end, n_steps)
+    # Use logspace for time to better visualize the initial transient
+    time_array = np.logspace(np.log10(0.1), np.log10(t_end), n_steps)
 
     # Create radial position array for calculating concentration profiles
     radial_pos = np.linspace(0, a, 20) # Radial positions from grain center to edge
 
-    # Calculate concentration profiles at each time point
-    concentration_profiles = np.array([[calculate_concentration(r, t, G, a, D, h, alpha_n) for r in radial_pos] for t in time_array])
+
+    # Part 1: System evolves with G1 for full time
+    # --- Release Rate Calculation ---
+    release_rate_total = calculate_release_rate(time_array, G1, a, D, h, alpha_n)
+
+    # --- Concentration Profiles Calculation ---
+    concentration_profiles = np.array([[calculate_concentration(r, t, G1, a, D, h, alpha_n) for r in radial_pos] for t in time_array])
+
+    # --- Inventory Calculation ---
+    inventory_total = calculate_inventory(time_array, G1, a, D, h, alpha_n)
+
+    # Part 2: Add the effect of the "ghost" generation rate (G2-G1) after t_change to simulate the change in generation rate.
+    ghost_G = G2 - G1
+    mask = time_array > t_change
+    if ghost_G != 0:
+        # Add ghost effect to the release rate
+        ghost_times = time_array[mask] - t_change
+        release_rate_total[mask] += calculate_release_rate(ghost_times, ghost_G, a, D, h, alpha_n)
+
+        # Add ghost effect to concentration profiles
+        ghost_profiles = np.array([[calculate_concentration(r, gt, ghost_G, a, D, h, alpha_n) for r in radial_pos] for gt in ghost_times])
+        concentration_profiles[mask] += ghost_profiles
+
+        # Add ghost effect to inventory
+        ghost_inventory = calculate_inventory(ghost_times, ghost_G, a, D, h, alpha_n)
+        inventory_total[mask] += ghost_inventory
+
+    # Calculate cumulative release
+    dt = np.diff(time_array, prepend=time_array[0])  # Time step for each interval
+    cumulative_release = np.cumsum(release_rate_total * dt)
+
     print("Calculations complete.\n")
-    
+
+    # --- 4. PLOT THE RESULTS ---
     print(concentration_profiles.shape)
     print(concentration_profiles[0])  # Print the first time step for verification
 
-    # Calculate the total release rate at each time point
-    release_rates = calculate_release_rate(time_array, G, a, D, h, alpha_n)
-
-    # --- 5. PLOT THE RESULTS ---
     print("Generating plots...")
 
-        # Plot 1: Concentration Profiles at Different Times
+    # Plot 1: Concentration Profiles at Different Times
     fig1, ax1 = plt.subplots(figsize=(10, 7))
     
     # Select a few time points to plot for clarity (e.g., 6 profiles)
-    # We skip the t=0 profile as it's all zeros
-    num_profiles_to_plot = 10
-    plot_indices = np.linspace(1, len(time_array) - 1, num=num_profiles_to_plot, dtype=int)
-    
+    num_profiles_to_plot = 15
+    n_irr = num_profiles_to_plot // 3
+    n_post = num_profiles_to_plot - n_irr
+
+    # Generate equally spaced times in each region
+    irr_times = np.linspace(0, t_change, n_irr, endpoint=False)
+    post_times = np.linspace(t_change, t_end, n_post)
+
+    # Find closest indices in time_array for each time
+    irr_indices = [np.abs(time_array - t).argmin() for t in irr_times]
+    post_indices = [np.abs(time_array - t).argmin() for t in post_times]
+
+    # Combine and ensure unique and sorted, always include t=0 and t_end
+    plot_indices = np.unique(np.concatenate(([0], irr_indices, post_indices, [len(time_array) - 1])))
+
     for i in plot_indices:
         time_val_hours = time_array[i] / 3600
         # Plot concentration vs. normalized radius (r/a)
@@ -240,29 +280,53 @@ if __name__ == '__main__':
     ax1.set_xlabel('Radius r (m)')
     ax1.set_ylabel('Concentration (atoms/m³)')
     ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
-    ax1.legend()
+    ax1.legend(loc = 'best')
     ax1.set_ylim(bottom=0) # Concentration can't be negative
-
-    plt.tight_layout()
-    plt.show()
 
     # Plot 2: Release Rate vs. Time
     fig2, ax2 = plt.subplots(figsize=(10, 7))
     
-    # Plot release rate vs time in hours. We skip the first point (t=0) for better scaling if needed.
-    ax2.plot(time_array[1:] / 3600, release_rates[1:], marker='.', linestyle='-')
-    
-    # At steady state, release rate equals generation rate (G * Volume)
-    steady_state_rate = G * (4/3 * np.pi * a**3)
-    ax2.axhline(y=steady_state_rate, color='r', linestyle='--', label=f'Steady-State Rate = {steady_state_rate:.2e} atoms/s')
+    # Highlight irradiation period
+    ax2.axvspan(0, t_change / 3600, color='red', alpha=0.2, label='Irradiation Period')
 
-    ax2.set_title('Tritium Release Rate Over Time')
+    # Plot release rate vs time in hours. We skip the first point (t=0) for better scaling if needed.
+    ax2.plot(time_array[:] / 3600, release_rate_total[:], linestyle='-', color='tab:blue', label='Release Rate')
+
+    ax2.set_title('Tritium Release Rate and Cumulative Release Over Time')
     ax2.set_xlabel('Time (hours)')
-    ax2.set_ylabel('Release Rate (atoms/s)')
+    ax2.set_ylabel('Release Rate (atoms/s)', color='tab:blue')
     ax2.grid(True, which='both', linestyle='--', linewidth=0.5)
     ax2.set_ylim(bottom=0)
-    ax2.legend()
 
+    # Secondary y-axis for cumulative release
+    ax2b = ax2.twinx()
+    ax2b.plot(time_array[1:] / 3600, cumulative_release[1:], color='tab:orange', linestyle='--', label='Cumulative Release')
+    ax2b.set_ylabel('Cumulative Release (atoms)', color='tab:orange')
+    ax2b.set_ylim(bottom=0)
+
+    # Add horizontal line for total tritium generated during irradiation
+    grain_volume = (4/3) * np.pi * a**3
+    total_generated = G1 * t_change * grain_volume
+    ax2b.axhline(total_generated, color='green', linestyle=':', linewidth=2, label='Total Tritium Generated')
+
+    # Legends for both axes
+    lines, labels = ax2.get_legend_handles_labels()
+    lines2, labels2 = ax2b.get_legend_handles_labels()
+    ax2.legend(lines + lines2, labels + labels2, loc='best')
+
+    # Plot 3: Tritium Inventory vs. Time
+    fig3, ax3 = plt.subplots(figsize=(10, 7))
+
+    # Highlight irradiation period
+    ax3.axvspan(0, t_change / 3600, color='red', alpha=0.2, label='Irradiation Period')
+
+    ax3.plot(time_array[:] / 3600, inventory_total, lw=2, label='Model Prediction')
+    ax3.axvline(x=t_change / 3600, color='k', linestyle='--', label=f'G changes at {t_change / 3600:.1f}h')
+    ax3.set_xlabel('Time (hours)', fontsize=12)
+    ax3.set_ylabel('Total Tritium Inventory (atoms)', fontsize=12)
+    ax3.set_title(f'Tritium Inventory with Generation Rate Change', fontsize=14)
+    ax3.legend()
+    ax3.set_ylim(bottom=0)
     plt.tight_layout()
     plt.show()
 

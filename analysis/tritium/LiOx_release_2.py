@@ -172,14 +172,14 @@ if __name__ == '__main__':
     
     # Physical Parameters (using illustrative values)
     # These should be changed to match the material and conditions of interest.
-    a = 0.00025    # Grain radius (m), e.g., 20 micrometers
+    a = 0.00075    # Grain radius (m), e.g., 20 micrometers
     D = 1e-13      # Diffusivity (m^2/s)
-    K_d = 1e-8     # Desorption rate constant (m/s)
+    K_d = 1e-3     # Desorption rate constant (m/s)
     # Calculated parameter h
     h = K_d / D    # Ratio K_d/D (m^-1)
 
     # Tritium generation rate (G) parameters
-    G1 = 1e19      # Initial tritium generation rate (atoms/m^3/s)
+    G1 = 8e9      # Initial tritium generation rate (atoms/m^3/s)
     t_change = 3600 * 2 # Time of change in seconds (e.g., 2 hours)
     G2 = 0         # Secondary tritium generation rate (atoms/m^3/s)
     
@@ -252,7 +252,7 @@ if __name__ == '__main__':
 
     print("Generating plots...")
 
-    # Plot 1: Concentration Profiles at Different Times
+    ## Plot 1: Concentration Profiles at Different Times
     fig1, ax1 = plt.subplots(figsize=(10, 7))
     
     # Select a few time points to plot for clarity (e.g., 6 profiles)
@@ -283,7 +283,7 @@ if __name__ == '__main__':
     ax1.legend(loc = 'best')
     ax1.set_ylim(bottom=0) # Concentration can't be negative
 
-    # Plot 2: Release Rate vs. Time
+    ## Plot 2: Release Rate vs. Time
     fig2, ax2 = plt.subplots(figsize=(10, 7))
     
     # Highlight irradiation period
@@ -308,13 +308,14 @@ if __name__ == '__main__':
     grain_volume = (4/3) * np.pi * a**3
     total_generated = G1 * t_change * grain_volume
     ax2b.axhline(total_generated, color='green', linestyle=':', linewidth=2, label='Total Tritium Generated')
+    ax2b.set_ylim(top=1.1 * total_generated)  # Set upper limit to 110% of total generated for better visibility
 
     # Legends for both axes
     lines, labels = ax2.get_legend_handles_labels()
     lines2, labels2 = ax2b.get_legend_handles_labels()
     ax2.legend(lines + lines2, labels + labels2, loc='best')
 
-    # Plot 3: Tritium Inventory vs. Time
+    ## Plot 3: Tritium Inventory vs. Time
     fig3, ax3 = plt.subplots(figsize=(10, 7))
 
     # Highlight irradiation period

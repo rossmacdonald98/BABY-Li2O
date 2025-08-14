@@ -45,15 +45,15 @@ Q_sparge = 8.33e-1  # Sparge Flow Rate (cm^3/s)
 decay_constant = 1.785e-9 # Tritium Decay Constant (1/s)
 
 # --- Simulation Parameters ---
-t_irr = 7200 # Irradiation Time (s)
-total_sim_time = 1000000 # Total simulation time (s)
+t_irr = 3600 * 2 # Irradiation Time (s)
+total_sim_time = 3600 * 1000 # Total simulation time (s)
 min_dt = 1e-5 # Min timestep for adaptive time-stepping (s)
 dt = min_dt # Initial timestep (s)
-allowed_change = 0.25 # Maximum relative change allowed in any variable per step
+allowed_change = 0.1 # Maximum relative change allowed in any variable per step
 
 # --- Simulation Grid ---
 # Radial grid for the grain model
-N = 10              # Number of radial nodes
+N = 20              # Number of radial nodes
 dr = r_g / N        # Radial step size (cm)
 r = np.linspace(0, r_g, N + 1)  # Radial positions of each node
 
@@ -95,6 +95,7 @@ data_intervals = []
 dt_history = []
 rel_change_history = []
 total_inventory_history = []
+grain_release_rate_history = []
 bed_release_rate_history = []
 C_pore_outlet_history = []
 C_sparge_outlet_history = []
@@ -102,6 +103,7 @@ Cm_history = []
 C_sparge_profile_history = {}
 total_generated_history = []
 cumulative_release_history = []
+cumulative_grain_release_history = []
 
 # --- Key times for sparge profile sampling ---
 key_times = [
@@ -166,6 +168,9 @@ while current_time < total_sim_time:
         Cm[j, N] = Cm_old[j, N] + (dCm_dt_diffusion_in - dCm_dt_surface_release_out + G - dCm_dt_trapping_surface + dCm_dt_detrapping_surface) * dt
         Ct[j, N] = Ct_old[j, N] + (dCm_dt_trapping_surface - dCm_dt_detrapping_surface) * dt
 
+    # Update grain release rate (at inlet, j = 0))
+    grain_release_rate = J_grain[0] * A_external # atoms/s
+    
     # Update sparge gas concentrations at bed inlet
     source_term_0 = (J_grain[0] * A_grains_plug) / V_sparge_plug
     convection_term_0 = (-Q_sparge * C_sparge_old[0]) / V_sparge_plug
@@ -211,6 +216,7 @@ while current_time < total_sim_time:
         # Release Rate
         release_rate = C_sparge[Nz-1] * Q_sparge # Release rate at the outlet (atoms/s)
         bed_release_rate_history.append(release_rate)
+        grain_release_rate_history.append(grain_release_rate)
         
         # Other histories
         C_sparge_outlet_history.append(C_sparge[Nz-1])
@@ -247,7 +253,7 @@ while current_time < total_sim_time:
         new_dt = 0.75 * dt
     elif max_rel_change < allowed_change:
     # Increase timestep slowly if change is below threshold
-        new_dt = 1.0005 * dt
+        new_dt = 1.00002 * dt
     
     if abs(t_irr - current_time) < 0.1:
         new_dt = min_dt # When near the end of irradiation, use minimum dt to ensure stability
@@ -359,6 +365,34 @@ ax2[1].axvspan(0, t_irr/86400, color='red', alpha=0.2)
 ax2[1].grid(True)
 
 plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+plt.show()
+
+# --- 7. PLOT GRAIN RELEASE RATE HISTORY ---
+cumulative_grain_release_history = np.cumsum(np.array(grain_release_rate_history) * data_intervals) # Cumulative grain release (atoms)
+fig3, ax3 = plt.subplots(figsize=(8, 5))
+ax3.plot(plot_time_days, grain_release_rate_history, color='teal', label='Grain Release Rate')
+ax3.set_xlabel('Time (days)')
+ax3.set_ylabel('Grain Release Rate at Inlet (atoms/s)')
+ax3.set_title('Per Grain Release Rate at Bed Inlet Over Time')
+ax3.axvspan(0, t_irr/86400, color='red', alpha=0.2, label='Irradiation Period')
+ax3.grid(True)
+
+# Add cumulative release on secondary y-axis
+ax3b = ax3.twinx()
+ax3b.plot(plot_time_days, cumulative_grain_release_history, color='orange', linestyle='--', label='Cumulative Grain Release')
+ax3b.set_ylabel('Cumulative Grain Release (atoms)')
+ax3b.set_ylim(bottom=0)
+
+# Add horizontal dashed line for total tritium production
+total_tritium_produced_atoms = G_rate * V_grain * t_irr
+ax3b.axhline(total_tritium_produced_atoms, color='gray', linestyle='dashed', linewidth=2, label='Total Tritium Produced')
+
+# Combine legends from both axes
+lines, labels = ax3.get_legend_handles_labels()
+lines2, labels2 = ax3b.get_legend_handles_labels()
+ax3.legend(lines + lines2, labels + labels2, loc='upper left')
+
+plt.tight_layout()
 plt.show()
 
 

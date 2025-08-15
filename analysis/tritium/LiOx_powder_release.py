@@ -89,7 +89,7 @@ C_sparge = np.zeros(Nz)
 J_grain = np.zeros(Nz)
 
 # --- Data Storage for Plotting ---
-plot_interval = 50
+plot_interval = 1000
 time_points = []
 data_intervals = []
 dt_history = []

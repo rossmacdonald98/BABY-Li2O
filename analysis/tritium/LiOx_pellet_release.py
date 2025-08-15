@@ -28,7 +28,7 @@ import json
 r_g = 0.075          # Average Grain Radius (cm)
 r_p = 0.3           # Pellet Radius (cm)
 porosity_pellet = 0.2  # Pellet porosity (void fraction, ε)
-fr = (1 - porosity_pellet)**10  # Surface Area Reduction Factor (accounts for necking due to sintering between grains)
+fr = 7.716 * porosity_pellet**2  # Surface Area Reduction Factor (accounts for necking due to sintering between grains)
 packing_density = 0.62 # Pellet bed packing efficiency (0.62 = Packing efficiency for random spheres) (φ)
 r_bed = 6.5          # Packed Bed Radius (cm)
 z_bed = 8         # Packed Bed Length (cm)
@@ -50,11 +50,11 @@ Q_sparge = 8.33e-1  # Sparge Flow Rate (cm^3/s)
 decay_constant = 1.785e-9 # Tritium Decay Constant (1/s)
 
 # --- Simulation Parameters ---
-t_irr = 7200 # Irradiation Time (s)
-total_sim_time = 100000 # Total simulation time (s)
+t_irr = 3600 * 2 # Irradiation Time (s)
+total_sim_time = 3600 * 1000 # Total simulation time (s)
 min_dt = 1e-5 # Min timestep for adaptive time-stepping (s)
 dt = min_dt # Initial timestep (s)
-allowed_change = 0.25 # Maximum relative change allowed in any variable per step
+allowed_change = 0.1 # Maximum relative change allowed in any variable per step
 
 # --- Simulation Grid ---
 # Radial grid for the grain model
@@ -265,7 +265,7 @@ while current_time < total_sim_time:
         new_dt = 0.75 * dt
     elif max_rel_change < allowed_change:
     # Increase timestep slowly if change is below threshold
-        new_dt = 1.0005 * dt
+        new_dt = 1.00005 * dt
     
     if abs(t_irr - current_time) < 0.1:
         new_dt = min_dt # When near the end of irradiation, use minimum dt to ensure stability

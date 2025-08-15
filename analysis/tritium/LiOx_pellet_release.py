@@ -20,11 +20,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import time 
+import json
 
 # --- 1. PHYSICAL AND SIMULATION PARAMETERS ---
 
 # --- Grain, Pellet & Packed Bed Properties ---
-r_g = 0.01          # Average Grain Radius (cm)
+r_g = 0.075          # Average Grain Radius (cm)
 r_p = 0.3           # Pellet Radius (cm)
 porosity_pellet = 0.2  # Pellet porosity (void fraction, ε)
 fr = (1 - porosity_pellet)**10  # Surface Area Reduction Factor (accounts for necking due to sintering between grains)
@@ -33,7 +34,7 @@ r_bed = 6.5          # Packed Bed Radius (cm)
 z_bed = 8         # Packed Bed Length (cm)
 
 # --- Diffusion, Trapping & Generation Properties ---
-D = 1.0e-10         # Diffusion Coefficient (cm^2/s)
+D = 1.0e-9         # Diffusion Coefficient (cm^2/s)
 kt = 1.0e-24        # Trapping Coefficient (cm^3/(atom*s))
 kd = 1.0e-3         # Detrapping Coefficient (1/s)
 Nt = 1.0e20         # Trapping Site Density (sites/cm^3)
@@ -50,14 +51,14 @@ decay_constant = 1.785e-9 # Tritium Decay Constant (1/s)
 
 # --- Simulation Parameters ---
 t_irr = 7200 # Irradiation Time (s)
-total_sim_time = 500000 # Total simulation time (s)
+total_sim_time = 100000 # Total simulation time (s)
 min_dt = 1e-5 # Min timestep for adaptive time-stepping (s)
 dt = min_dt # Initial timestep (s)
 allowed_change = 0.25 # Maximum relative change allowed in any variable per step
 
 # --- Simulation Grid ---
 # Radial grid for the grain model
-N = 10              # Number of radial nodes
+N = 50              # Number of radial nodes
 dr = r_g / N        # Radial step size (cm)
 r = np.linspace(0, r_g, N + 1)  # Radial positions of each node
 
@@ -276,108 +277,65 @@ while current_time < total_sim_time:
 run_time = time.time() - start_time
 print(f"\n--- Simulation Completed in {run_time:.2f} seconds ---")
 
-# --- 5. PLOT THE RESULTS ---
-plt.style.use('seaborn-v0_8-darkgrid')
-fig, axes = plt.subplots(3, 2, figsize=(14, 12))
-fig.suptitle('Pellet Bed Tritium Transport Simulation Results (Plug Flow Model)', fontsize=16)
-axes = axes.flatten()
-plot_time_days = np.array(time_points) / 86400
+# --- EXPORT RESULTS TO JSON ---
+print("--- Exporting results to JSON file ---")
 
-# a) Total Bed Inventory
-axes[0].plot(plot_time_days, total_inventory_history, color='green', label='Simulated Inventory')
-axes[0].set_xlabel('Time (days)')
-axes[0].set_ylabel('Tritium Inventory (Bq)')
-axes[0].set_title('Total Tritium Inventory in Packed Bed (Bq)')
-axes[0].ticklabel_format(axis='y', style='plain')
-axes[0].axvspan(0, t_irr/86400, color='red', alpha=0.3, label='Irradiation Period')
-axes[0].legend()
-axes[0].grid(True)
+# First, calculate cumulative release as it's needed for the export
+cumulative_release = np.cumsum(np.array(bed_release_rate_history) * data_intervals) * decay_constant
 
-# b) Bed Release Rate
-axes[1].plot(plot_time_days, bed_release_rate_history, color='purple')
-axes[1].set_xlabel('Time (days)')
-axes[1].set_ylabel('Packed bed release rate (atoms/s)')
-axes[1].set_title('Tritium Release Rate from Bed Outlet')
-axes[1].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
-axes[1].axvspan(0, t_irr/86400, color='red', alpha=0.3)
-axes[1].grid(True)
+# Create a dictionary to hold all parameters
+parameters = {
+    "grain_radius_cm": r_g,
+    "pellet_radius_cm": r_p,
+    "pellet_porosity": porosity_pellet,
+    "packing_density": packing_density,
+    "bed_radius_cm": r_bed,
+    "bed_length_cm": z_bed,
+    "diffusion_coeff_cm2_s": D,
+    "trapping_coeff_cm3_atom_s": kt,
+    "detrapping_coeff_s": kd,
+    "trap_density_sites_cm3": Nt,
+    "tritium_generation_rate_T_cm3_s": G_rate,
+    "sparge_flow_rate_cm3_s": Q_sparge,
+    "decay_constant_s": decay_constant,
+    "irradiation_time_s": t_irr,
+    "total_sim_time_s": total_sim_time,
+    "radial_nodes_grain": N,
+    "axial_nodes_bed": Nz
+}
 
-# c) Sparge Gas Outlet Concentration
-axes[2].plot(plot_time_days, C_sparge_outlet_history, label='Outlet Sparge Gas', color='orange')
-axes[2].plot(plot_time_days, C_pore_outlet_history, label='Outlet Pore Gas', color='blue', linestyle='--')
-axes[2].set_xlabel('Time (days)')
-axes[2].set_ylabel('Concentration (T/cm³)')
-axes[2].set_title('Sparge Gas & Pore Gas Concentration at Bed Outlet')
-axes[2].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
-axes[2].axvspan(0, t_irr/86400, color='red', alpha=0.3)
-axes[2].legend(loc='upper left')
-axes[2].grid(True)
+# Create a dictionary for the results, converting numpy arrays to lists
+results = {
+    "time_s": time_points,
+    "time_days": (np.array(time_points) / 86400).tolist(),
+    "total_inventory_Bq": total_inventory_history,
+    "bed_release_rate_atoms_s": bed_release_rate_history,
+    "outlet_pore_concentration_T_cm3": C_pore_outlet_history,
+    "outlet_sparge_concentration_T_cm3": C_sparge_outlet_history,
+    "total_generated_tritium_Bq": total_generated_history,
+    "cumulative_release_Bq": cumulative_release.tolist(),
+    "grain_radial_positions_cm": r.tolist(),
+    "grain_mobile_concentration_profile_inlet_T_cm3": np.array(Cm_history).tolist(),
+    "sparge_gas_axial_profiles_T_cm3": {k: v.tolist() for k, v in C_sparge_profile_history.items()},
+    "adaptive_timestep_s": dt_history,
+    "max_relative_change": rel_change_history,
+    "key_times": key_times.tolist()
+}
 
-# d) Sparge Gas Axial Profile
-colors = plt.cm.viridis(np.linspace(0, 1, len(key_times) + 1))
-i=0
-for label, profile in C_sparge_profile_history.items():
-    i += 1
-    axes[3].plot(z, profile, color=colors[i], label=label)
-axes[3].set_xlabel('Axial Position (z) in Packed Bed (cm)')
-axes[3].set_ylabel('Sparge Gas Concentration (T/cm³)')
-axes[3].set_title('Sparge Gas Concentration Axial Profile')
-axes[3].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
-axes[3].legend()
-axes[3].grid(True)
+# Combine into a single dictionary
+export_data = {
+    "simulation_parameters": parameters,
+    "simulation_results": results
+}
 
-# e) Mobile Concentration Within Grain
-Cm_history = np.array(Cm_history)
-colors = plt.cm.viridis(np.linspace(0, 1, N + 1))
-for i in range(N + 1):
-    axes[4].plot(plot_time_days, Cm_history[:, i], color=colors[i], label=f"r={r[i]:.3f} cm")
-axes[4].set_xlabel('Time (days)')
-axes[4].set_ylabel('Mobile Concentration (T/cm³)')
-axes[4].set_title('Mobile Tritium Concentration Profile in Grain Over Time, at Plug 0 (inlet)')
-axes[4].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
-axes[4].axvspan(0, t_irr/86400, color='red', alpha=0.3, label='Irradiation Period')
-axes[4].legend(fontsize='small', ncol=2)
-axes[4].grid(True)
+# Write to a JSON file
+output_filename = 'pellet_release_results.json'
+with open(output_filename, 'w') as f:
+    json.dump(export_data, f, indent=4)
 
-# f) Mass Balance Check
-cumulative_release = np.cumsum(np.array(bed_release_rate_history) * data_intervals) * decay_constant  # Cumulative release (Bq)
-inventory_plus_release = np.array(total_inventory_history) + cumulative_release
+print(f"Results successfully exported to {output_filename}\n")
 
-axes[5].plot(plot_time_days, total_generated_history, 'k--', label='Total Generated')
-axes[5].plot(plot_time_days, total_inventory_history, 'g-', label='Total Inventory')
-axes[5].plot(plot_time_days, cumulative_release, 'b--', label='Cumulative Release')
-axes[5].plot(plot_time_days, inventory_plus_release, 'r-', label='Inventory + Cumulative Release')
-axes[5].set_xlabel('Time (days)')
-axes[5].set_ylabel('Inventory (Bq)')
-axes[5].set_title('Mass Balance Verification')
-axes[5].ticklabel_format(axis='y', style='plain')
-axes[5].axvspan(0, t_irr/86400, color='red', alpha=0.2)
-axes[5].legend()
 
-plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-plt.show()
-
-# --- 6. PLOT TIMESTEP AND RELATIVE CHANGE HISTORY ---
-fig2, ax2 = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
-fig2.suptitle('Adaptive Timestep and Relative Change History', fontsize=15)
-
-# Plot dt_history
-ax2[0].plot(plot_time_days, dt_history, color='blue')
-ax2[0].set_ylabel('Timestep (s)')
-ax2[0].set_title('Adaptive Timestep (dt) vs Time')
-ax2[0].axvspan(0, t_irr/86400, color='red', alpha=0.2)
-ax2[0].grid(True)
-
-# Plot rel_change_history
-ax2[1].plot(plot_time_days, rel_change_history, color='red')
-ax2[1].set_xlabel('Time (days)')
-ax2[1].set_ylabel('Max Relative Change')
-ax2[1].set_title('Max Relative Change vs Time')
-ax2[1].axvspan(0, t_irr/86400, color='red', alpha=0.2)
-ax2[1].grid(True)
-
-plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-plt.show()
 
 
 

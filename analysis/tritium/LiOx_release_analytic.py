@@ -186,7 +186,7 @@ if __name__ == '__main__':
     # Simulation Parameters
     # User-defined timespan
     t_start = 0
-    t_end = 3600 * 200  # End time in seconds
+    t_end = 3600 * 1000  # End time in seconds
     n_steps = 5000     # Number of time steps for the plot
     n_roots = 100     # Number of roots to calculate for the series solution
     

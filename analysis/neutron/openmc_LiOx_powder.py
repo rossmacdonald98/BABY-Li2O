@@ -471,7 +471,10 @@ def baby_geometry():
 mesh = 1  # Enable (1) / disable (0) mesh tallies.
 cell_size = 0.2  # cm # Size of mesh cells for mesh tallies
 batches = 100  # Number of batches for the simulation
-particles = int(1.5e4)  # Number of particles per batch
+if mesh == 1:
+    particles = int(1e6)  # Number of particles per batch for meshed model
+else:
+    particles = int(1.5e4)  # Number of particles per batch for non-meshed model
 
 # Lithium Oxide pellet bed properties
 pellet_porosity = 0.00  # 0 porosity for powder, each 'pellet' is a solid grain

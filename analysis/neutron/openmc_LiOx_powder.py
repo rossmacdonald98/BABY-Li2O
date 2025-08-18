@@ -3,11 +3,11 @@ from libra_toolbox.neutronics.neutron_source import A325_generator_diamond
 from libra_toolbox.neutronics import vault
 import math
 import numpy as np
+import os
+import glob
 
 ############################################################################
 # Functions
-
-
 def calculate_breeder_depth(R, r, g, V):
     """Calculates the height (H) of a cylindrical volume (radius R & volume V) with an
     inserted inner cylinder (of radius r & gap from larger cylinder floor of g).
@@ -121,21 +121,21 @@ def baby_model():
 
     src = A325_generator_diamond((x_c, y_c, z_c - 5.635), (1, 0, 0))
     settings.source = src
-    settings.batches = 100
+    settings.batches = batches
     settings.inactive = 0
     settings.run_mode = "fixed source"
-    settings.particles = int(1.5e7)
+    settings.particles = particles
     settings.output = {"tallies": True}
     settings.photon_transport = False
+
+    if mesh == 1:
+        settings.particles = int(1e6)  # Increase particle count for mesh tallies
 
     ############################################################################
     overall_exclusion_region = -sphere
 
     ############################################################################
     # Specify Tallies
-
-    # Specify the mesh cell size
-    cell_size = 0.2  # cm
 
     # Create a list of tallies
     tallies = openmc.Tallies()
@@ -144,41 +144,45 @@ def baby_model():
     tbr_tally = openmc.Tally(name="TBR")
     tbr_tally.scores = ["(n,Xt)"]
     tbr_tally.filters = [openmc.CellFilter(Li2O_bed_cell)]  # Add cell filter to tally
-
-    # Create a second tally to add the mesh filter to for spatial TBR distribution results
-    tbr_tally_mesh = openmc.Tally(name="TBR_mesh")
-    tbr_tally_mesh.scores = ["(n,Xt)"]
-    tbr_tally_mesh.filters = [openmc.CellFilter(Li2O_bed_cell)]
-    # Add cell filter to tally_mesh
-
-    # Create a cylindrical mesh
-    r_grid = np.linspace(
-        0, Li2O_bed_radius, (int(Li2O_bed_radius / cell_size)) + 1
-    )  # bin width ≈ cell_size
-
-    phi_grid = np.linspace(0, 2 * np.pi, 81)  # 80 angular bins across full rotation
-
-    z_grid = np.linspace(
-        0, Li2O_bed_thickness, (int(Li2O_bed_thickness / cell_size)) + 1
-    )  # bin height ≈ cell_size
-
-    mesh_origin = (
-        x_c,
-        y_c,
-        Li2O_bed_z,
-    )  # Origin of the mesh aligned with xy position of BABY central axis, and z position of the bottom of the Li2O bed.
-
-    cyl_mesh = openmc.CylindricalMesh(r_grid, z_grid, phi_grid, mesh_origin)
-
-    # Create a mesh filter from the cylindrical mesh
-    mesh_filter = openmc.MeshFilter(cyl_mesh)
-
-    # Add cylindrical mesh filter to tbr_tally_mesh
-    tbr_tally_mesh.filters.append(mesh_filter)
-
-    # Append both tallies to the list of tallies
+    
+    # Add the tally to the list of tallies
     tallies.append(tbr_tally)
-    tallies.append(tbr_tally_mesh)
+
+    # Add a mesh tally if mesh is enabled
+    if mesh == 1:
+
+        # Create a second tally to add the mesh filter to for spatial TBR distribution results
+        tbr_tally_mesh = openmc.Tally(name="TBR_mesh")
+        tbr_tally_mesh.scores = ["(n,Xt)"]
+        tbr_tally_mesh.filters = [openmc.CellFilter(Li2O_bed_cell)]  # Add cell filter to tally_mesh
+        
+        # Create a cylindrical mesh
+        r_grid = np.linspace(
+            0, Li2O_bed_radius, (int(Li2O_bed_radius / cell_size)) + 1
+        )  # bin width ≈ cell_size
+
+        phi_grid = np.linspace(0, 2 * np.pi, 81)  # 80 angular bins across full rotation
+
+        z_grid = np.linspace(
+            0, Li2O_bed_thickness, (int(Li2O_bed_thickness / cell_size)) + 1
+        )  # bin height ≈ cell_size
+
+        mesh_origin = (
+            x_c,
+            y_c,
+            Li2O_bed_z,
+        )  # Origin of the mesh aligned with xy position of BABY central axis, and z position of the bottom of the Li2O bed.
+
+        cyl_mesh = openmc.CylindricalMesh(r_grid, z_grid, phi_grid, mesh_origin)
+
+        # Create a mesh filter from the cylindrical mesh
+        mesh_filter = openmc.MeshFilter(cyl_mesh)
+
+        # Add cylindrical mesh filter to tbr_tally_mesh
+        tbr_tally_mesh.filters.append(mesh_filter)
+
+        # Append mesh tally to the list of tallies
+        tallies.append(tbr_tally_mesh)
 
     ############################################################################
     # Model
@@ -464,7 +468,19 @@ def baby_geometry():
 
 
 ############################################################################
-# Dimensions
+# Setup
+
+## Define the BABY model
+mesh = 0  # Enable (1) / disable (0) mesh tallies.
+cell_size = 0.2  # cm # Size of mesh cells for mesh tallies
+batches = 100  # Number of batches for the simulation
+particles = int(1.5e4)  # Number of particles per batch
+
+# Lithium Oxide pellet bed properties
+pellet_porosity = 0.00  # 0 porosity for powder, each 'pellet' is a solid grain
+packing_efficiency = 0.64  # Random packing efficiency for equally-sized spheres
+
+## Dimensions
 # All dimensions in cm
 
 ## BABY coordinates within vault
@@ -560,18 +576,18 @@ he.set_density("g/cm3", he_density)
 
 # Lithium Oxide Pebble Bed
 Li2O_bed = openmc.Material(name="Lithium Oxide Pebble Bed")
-pellet_porosity = 0.05  # Current value a guess, data not available.
-packing_efficiency = 0.7  # Random packing efficiency for cylindrical pellets with an aspect ratio of 1 **Needs citation**
-
 pellet_bed_density, Li_mass_frac_bed, O_mass_frac_bed, He_mass_frac_bed = (
     get_Li2O_bed_properties(pellet_porosity, packing_efficiency, he_density)
 )
 
 print("**Li2O packed bed properties**")
+print("Pellet porosity:", pellet_porosity * 100, "%")
+print("Packing efficiency:", packing_efficiency * 100, "%")
+print("Pellet bed density:", pellet_bed_density, "g/cm3")
 print("Oxygen mass fraction:", O_mass_frac_bed, "% mass")
 print("Lithium mass fraction:", Li_mass_frac_bed, "% mass")
 print("Helium mass fraction:", He_mass_frac_bed, "% mass")
-print("Pellet bed density:", pellet_bed_density, "g/cm3")
+
 
 Li2O_bed.add_element("O", O_mass_frac_bed, "wo")
 Li2O_bed.add_element("Li", Li_mass_frac_bed, "wo")
@@ -651,16 +667,44 @@ lead.add_nuclide("Pb206", 0.241, "ao")
 lead.add_nuclide("Pb207", 0.221, "ao")
 lead.add_nuclide("Pb208", 0.524, "ao")
 
+
 ############################################################################
 # Main
 
 if __name__ == "__main__":
 
+    # Delete any existing statepoint and summary files
+    for file in glob.glob("LiOx_powder_results.h5"):
+        os.remove(file)
+        print(f"Deleted existing file: {file}")
+
+    # Delete any existing processed_data.json file
+    processed_data_file = "LiOx_powder_results.json"
+    if os.path.exists(processed_data_file):
+        os.remove(processed_data_file)
+        print(f"Deleted existing file: {processed_data_file}")
+
     model = baby_model()
     model.run()
-    sp = openmc.StatePoint(f"statepoint.{model.settings.batches}.h5")
+
+    # Define file paths
+    old_sp_path = f"statepoint.{model.settings.batches}.h5"
+    new_sp_path = "LiOx_powder_results.h5"
+
+    # Rename the statepoint file and load it
+    try:
+        os.rename(old_sp_path, new_sp_path)
+        print(f"Renamed '{old_sp_path}' to '{new_sp_path}'")
+    except FileNotFoundError:
+        print(f"Warning: '{old_sp_path}' not found.")
+
+    # Load the statepoint from the new path
+    sp = openmc.StatePoint(new_sp_path)
+
+    # get the tally for the global TBR from the statepoint
     tbr_tally = sp.get_tally(name="TBR").get_pandas_dataframe()
 
+    # Print the global TBR results
     mean = tbr_tally["mean"].iloc[0]
     stdev = tbr_tally["std. dev."].iloc[0]
 
@@ -672,7 +716,7 @@ if __name__ == "__main__":
     print(f"Relative standard deviation: {rel_stdev:.6e}\n")
     print("Relative standard deviation below 1e-02 (1%) indicates good convergence.")
 
-    processed_data = {
+    LiOx_powder_results = {
         "modelled_TBR": {
             "mean": tbr_tally["mean"].iloc[0],
             "std_dev": tbr_tally["std. dev."].iloc[0],
@@ -681,7 +725,7 @@ if __name__ == "__main__":
 
     import json
 
-    processed_data_file = "../../data/processed_data.json"
+    processed_data_file = "LiOx_powder_results.json"
 
     try:
         with open(processed_data_file, "r") as f:
@@ -690,7 +734,7 @@ if __name__ == "__main__":
         print(f"Processed data file not found, creating it in {processed_data_file}")
         existing_data = {}
 
-    existing_data.update(processed_data)
+    existing_data.update(LiOx_powder_results)
 
     with open(processed_data_file, "w") as f:
         json.dump(existing_data, f, indent=4)

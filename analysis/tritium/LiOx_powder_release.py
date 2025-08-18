@@ -253,7 +253,7 @@ while current_time < total_sim_time:
         new_dt = 0.75 * dt
     elif max_rel_change < allowed_change:
     # Increase timestep slowly if change is below threshold
-        new_dt = 1.00005 * dt
+        new_dt = 1.0005 * dt
     
     if abs(t_irr - current_time) < 0.1:
         new_dt = min_dt # When near the end of irradiation, use minimum dt to ensure stability

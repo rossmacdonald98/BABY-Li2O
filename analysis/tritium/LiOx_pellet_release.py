@@ -329,7 +329,7 @@ export_data = {
 }
 
 # Write to a JSON file
-output_filename = 'pellet_release_results.json'
+output_filename = 'LiOx_pellet_results.json'
 with open(output_filename, 'w') as f:
     json.dump(export_data, f, indent=4)
 

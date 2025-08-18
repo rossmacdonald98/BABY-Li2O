@@ -128,9 +128,6 @@ def baby_model():
     settings.output = {"tallies": True}
     settings.photon_transport = False
 
-    if mesh == 1:
-        settings.particles = int(1e6)  # Increase particle count for mesh tallies
-
     ############################################################################
     overall_exclusion_region = -sphere
 
@@ -471,7 +468,7 @@ def baby_geometry():
 # Setup
 
 ## Define the BABY model
-mesh = 0  # Enable (1) / disable (0) mesh tallies.
+mesh = 1  # Enable (1) / disable (0) mesh tallies.
 cell_size = 0.2  # cm # Size of mesh cells for mesh tallies
 batches = 100  # Number of batches for the simulation
 particles = int(1.5e4)  # Number of particles per batch
@@ -675,6 +672,10 @@ if __name__ == "__main__":
 
     # Delete any existing statepoint and summary files
     for file in glob.glob("LiOx_powder_results.h5"):
+        os.remove(file)
+        print(f"Deleted existing file: {file}")
+
+    for file in glob.glob("summary.h5"):
         os.remove(file)
         print(f"Deleted existing file: {file}")
 

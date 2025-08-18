@@ -128,9 +128,6 @@ def baby_model():
     settings.output = {"tallies": True}
     settings.photon_transport = False
 
-    if mesh == 1:
-        settings.particles = int(1e6)  # Increase particle count for mesh tallies
-
     ############################################################################
     overall_exclusion_region = -sphere
 

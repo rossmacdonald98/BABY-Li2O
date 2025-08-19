@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import brentq
 from scipy.integrate import quad
 
-# --- Core Model Functions based on Johnson et al. 1994 ---
+# --- Core Model Functions based on Johnson et al. 1994 "TRITIUM TRANSPORT AND RELEASE FROM LITHIUM CERAMIC BREEDER MATERIALS" ---
 
 def find_alpha_roots(n_roots, a, h):
     """
@@ -170,24 +170,25 @@ def calculate_inventory(t, G, a, D, h, alpha_n):
 if __name__ == '__main__':
     # --- 1. DEFINE PHYSICAL AND SIMULATION PARAMETERS ---
     
-    # Physical Parameters (using illustrative values)
-    # These should be changed to match the material and conditions of interest.
-    a = 0.00075    # Grain radius (m), e.g., 20 micrometers
+    # Physical Parameters 
+    a = 0.00025 / 2    # Grain radius (m)
     D = 1e-13      # Diffusivity (m^2/s)
     K_d = 1e-3     # Desorption rate constant (m/s)
+    
     # Calculated parameter h
     h = K_d / D    # Ratio K_d/D (m^-1)
 
     # Tritium generation rate (G) parameters
-    G1 = 8e9      # Initial tritium generation rate (atoms/m^3/s)
-    t_change = 3600 * 2 # Time of change in seconds (e.g., 2 hours)
+    source_rate = 8e8 # Neutron source rate (n/s)
+    volumetric_tbr = 2.2e1 # Volumetric tritium breeding ratio (T/m^3/n)
+    G1 = source_rate * volumetric_tbr # Initial tritium generation rate (atoms/m^3/s)
     G2 = 0         # Secondary tritium generation rate (atoms/m^3/s)
     
     # Simulation Parameters
-    # User-defined timespan
     t_start = 0
-    t_end = 3600 * 1000  # End time in seconds
-    n_steps = 5000     # Number of time steps for the plot
+    t_change = 3600 * 2 # Time of generation rate change in seconds
+    t_end = 3600 * 24  # Simulatione end time in seconds
+    n_steps = 500     # Number of time steps for the plot
     n_roots = 100     # Number of roots to calculate for the series solution
     
     print("--- Model Parameters ---")
@@ -206,13 +207,12 @@ if __name__ == '__main__':
     
     # --- 3. CALCULATE RESULTS OVER TIME ---
     print("Calculating release rate and inventory over time...")
-    # Create a time array from t_start to t_end
+
     # Use logspace for time to better visualize the initial transient
     time_array = np.logspace(np.log10(0.1), np.log10(t_end), n_steps)
 
     # Create radial position array for calculating concentration profiles
     radial_pos = np.linspace(0, a, 20) # Radial positions from grain center to edge
-
 
     # Part 1: System evolves with G1 for full time
     # --- Release Rate Calculation ---
@@ -247,16 +247,14 @@ if __name__ == '__main__':
     print("Calculations complete.\n")
 
     # --- 4. PLOT THE RESULTS ---
-    print(concentration_profiles.shape)
-    print(concentration_profiles[0])  # Print the first time step for verification
-
     print("Generating plots...")
+
 
     ## Plot 1: Concentration Profiles at Different Times
     fig1, ax1 = plt.subplots(figsize=(10, 7))
-    
-    # Select a few time points to plot for clarity (e.g., 6 profiles)
-    num_profiles_to_plot = 15
+        
+    # Select a few time points to plot for clarity
+    num_profiles_to_plot = 10
     n_irr = num_profiles_to_plot // 3
     n_post = num_profiles_to_plot - n_irr
 
@@ -273,7 +271,7 @@ if __name__ == '__main__':
 
     for i in plot_indices:
         time_val_hours = time_array[i] / 3600
-        # Plot concentration vs. normalized radius (r/a)
+        # Plot concentration vs. radius
         ax1.plot(radial_pos, concentration_profiles[i], marker='o', linestyle='-', label=f't = {time_val_hours:.2f} hours')
 
     ax1.set_title('Tritium Concentration Profiles in the Grain')
@@ -281,7 +279,8 @@ if __name__ == '__main__':
     ax1.set_ylabel('Concentration (atoms/m³)')
     ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
     ax1.legend(loc = 'best')
-    ax1.set_ylim(bottom=0) # Concentration can't be negative
+    ax1.set_ylim(bottom=0)
+
 
     ## Plot 2: Release Rate vs. Time
     fig2, ax2 = plt.subplots(figsize=(10, 7))
@@ -289,12 +288,12 @@ if __name__ == '__main__':
     # Highlight irradiation period
     ax2.axvspan(0, t_change / 3600, color='red', alpha=0.2, label='Irradiation Period')
 
-    # Plot release rate vs time in hours. We skip the first point (t=0) for better scaling if needed.
+    # Plot release rate vs time
     ax2.plot(time_array[:] / 3600, release_rate_total[:], linestyle='-', color='tab:blue', label='Release Rate')
 
-    ax2.set_title('Tritium Release Rate and Cumulative Release Over Time')
+    ax2.set_title('Tritium Release Rate and Cumulative Release from Single Grain Over Time')
     ax2.set_xlabel('Time (hours)')
-    ax2.set_ylabel('Release Rate (atoms/s)', color='tab:blue')
+    ax2.set_ylabel('Release Rate (atoms / s)', color='tab:blue')
     ax2.grid(True, which='both', linestyle='--', linewidth=0.5)
     ax2.set_ylim(bottom=0)
 
@@ -313,7 +312,8 @@ if __name__ == '__main__':
     # Legends for both axes
     lines, labels = ax2.get_legend_handles_labels()
     lines2, labels2 = ax2b.get_legend_handles_labels()
-    ax2.legend(lines + lines2, labels + labels2, loc='best')
+    ax2.legend(lines + lines2, labels + labels2, loc='center right')
+
 
     ## Plot 3: Tritium Inventory vs. Time
     fig3, ax3 = plt.subplots(figsize=(10, 7))
@@ -325,7 +325,7 @@ if __name__ == '__main__':
     ax3.axvline(x=t_change / 3600, color='k', linestyle='--', label=f'G changes at {t_change / 3600:.1f}h')
     ax3.set_xlabel('Time (hours)', fontsize=12)
     ax3.set_ylabel('Total Tritium Inventory (atoms)', fontsize=12)
-    ax3.set_title(f'Tritium Inventory with Generation Rate Change', fontsize=14)
+    ax3.set_title(f'Tritium Inventory in Single Grain vs Time', fontsize=14)
     ax3.legend()
     ax3.set_ylim(bottom=0)
     plt.tight_layout()

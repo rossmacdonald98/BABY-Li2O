@@ -54,13 +54,13 @@ decay_constant = 1.785e-9 # Tritium Decay Constant (1/s)
 
 # --- Simulation Parameters ---
 t_irr = 3600 * 2 # Irradiation Time (s)
-total_sim_time = 3600 * 250 # Total simulation time (s)
-min_dt = 1e-4 # Min timestep for adaptive time-stepping (s)
+total_sim_time = 3600 * 24 # Total simulation time (s)
+min_dt = 1e-3 # Min timestep for adaptive time-stepping (s)
 allowed_change = 0.1 # Maximum relative change allowed in any variable per step
 
 # --- Simulation Grid ---
 # Radial grid for the grain model
-N = 40              # Number of radial nodes
+N = 20              # Number of radial nodes
 dr = r_g / N        # Radial step size (cm)
 r = np.linspace(0, r_g, N + 1)  # Radial positions of each node
 

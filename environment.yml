@@ -1,8 +1,8 @@
-name: BABY_1l_LiOx_PipFix
+name: BABY_LiOx_Dev
 channels:
   - conda-forge
 dependencies:
-  - python=3.12
+  - python=3.12.10
   - openmc-plotter
   - numpy # add version tag
   - scipy # add version tag
@@ -21,3 +21,4 @@ dependencies:
       - openmc_data_downloader
       - matplotlib-label-lines
       - h-transport-materials
+      - cadquery

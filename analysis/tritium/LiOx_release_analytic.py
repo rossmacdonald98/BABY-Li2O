@@ -1,3 +1,17 @@
+# -----------------------------------------------------------------------------
+# Diffusion-Desorption Tritium Release Model for Lithium Ceramic Spherical Grains.
+# From the paper: # Johnson, J. R., et al. "Tritium transport and release from lithium ceramic breeder materials." Fusion Technology 26.1 (1994): 1-10.
+#
+# Adapted to apply a temporally varying generation rate to simulate neutron irradiation by superimposing a "ghost" generation rate after a specified time.
+#
+# The script is set up as follows:
+# 1. Define functions.
+# 2. Initialize physical parameters and simulation settings.
+# 3. Pre-calculate the roots of the characteristic equation for the diffusion-desorption problem.
+# 4. Calculate the tritium release rate, concentration profiles, and total inventory over time.
+# 5. Plot the results, including concentration profiles, release rate, cumulative release, and inventory.
+# -----------------------------------------------------------------------------
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import brentq
@@ -166,30 +180,33 @@ def calculate_inventory(t, G, a, D, h, alpha_n):
         inventory = quad(integrand, 0, a, args=(t,))[0]
         return inventory
 
+
+# --- DEFINE PHYSICAL AND SIMULATION PARAMETERS ---
+    
+# Physical Parameters 
+a = 0.00025 / 2    # Grain radius (m)
+D = 1e-13      # Diffusivity (m^2/s)
+K_d = 1e-3     # Desorption rate constant (m/s)
+    
+# Calculated parameter h
+h = K_d / D    # Ratio K_d/D (m^-1)
+
+# Tritium generation rate (G) parameters
+source_rate = 8e8 # Neutron source rate (n/s)
+volumetric_tbr = 2.2e1 # Volumetric tritium breeding ratio (T/m^3/n)
+G1 = source_rate * volumetric_tbr # Initial tritium generation rate (atoms/m^3/s)
+G2 = 0         # Secondary tritium generation rate (atoms/m^3/s)
+    
+# Simulation Parameters
+t_start = 0
+t_change = 3600 * 2 # Time of generation rate change in seconds
+t_end = 3600 * 24  # Simulatione end time in seconds
+n_steps = 500     # Number of time steps for the plot
+n_roots = 100     # Number of roots to calculate for the series solution
+
+
 # --- Main Script: Simulation and Plotting ---
 if __name__ == '__main__':
-    # --- 1. DEFINE PHYSICAL AND SIMULATION PARAMETERS ---
-    
-    # Physical Parameters 
-    a = 0.00025 / 2    # Grain radius (m)
-    D = 1e-13      # Diffusivity (m^2/s)
-    K_d = 1e-3     # Desorption rate constant (m/s)
-    
-    # Calculated parameter h
-    h = K_d / D    # Ratio K_d/D (m^-1)
-
-    # Tritium generation rate (G) parameters
-    source_rate = 8e8 # Neutron source rate (n/s)
-    volumetric_tbr = 2.2e1 # Volumetric tritium breeding ratio (T/m^3/n)
-    G1 = source_rate * volumetric_tbr # Initial tritium generation rate (atoms/m^3/s)
-    G2 = 0         # Secondary tritium generation rate (atoms/m^3/s)
-    
-    # Simulation Parameters
-    t_start = 0
-    t_change = 3600 * 2 # Time of generation rate change in seconds
-    t_end = 3600 * 24  # Simulatione end time in seconds
-    n_steps = 500     # Number of time steps for the plot
-    n_roots = 100     # Number of roots to calculate for the series solution
     
     print("--- Model Parameters ---")
     print(f"Grain Radius (a): {a:.2e} m")

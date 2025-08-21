@@ -1,3 +1,17 @@
+# -----------------------------------------------------------------------------
+# Neutronics Model of the BABY 1L Experiment with Li2O Pellets
+#
+# This script sets up and runs a neutronics model of the BABY experiment to calculate the TBR.
+# The TBR is considered as the number of tritium atoms produced in the Li20 per neutron emitted from the source.
+#
+# THe script is set up as follows:
+# Define functions for calculating breeder depth and Li2O bed properties, building the openmc model, and constructing the geometry.
+# Model setup, incuding simulation settings, pellet bed properties, and dimensions.
+# Define materials used in the model, including their compositions and densities.
+# Main execution block that runs the model, processes results, and saves them to a file.
+#
+# -----------------------------------------------------------------------------
+
 import openmc
 from libra_toolbox.neutronics.neutron_source import A325_generator_diamond
 from libra_toolbox.neutronics import vault
@@ -5,6 +19,7 @@ import math
 import numpy as np
 import os
 import glob
+
 
 ############################################################################
 # Functions
@@ -141,7 +156,7 @@ def baby_model():
     tbr_tally = openmc.Tally(name="TBR")
     tbr_tally.scores = ["(n,Xt)"]
     tbr_tally.filters = [openmc.CellFilter(Li2O_bed_cell)]  # Add cell filter to tally
-    
+
     # Add the tally to the list of tallies
     tallies.append(tbr_tally)
 
@@ -151,8 +166,10 @@ def baby_model():
         # Create a second tally to add the mesh filter to for spatial TBR distribution results
         tbr_tally_mesh = openmc.Tally(name="TBR_mesh")
         tbr_tally_mesh.scores = ["(n,Xt)"]
-        tbr_tally_mesh.filters = [openmc.CellFilter(Li2O_bed_cell)]  # Add cell filter to tally_mesh
-        
+        tbr_tally_mesh.filters = [
+            openmc.CellFilter(Li2O_bed_cell)
+        ]  # Add cell filter to tally_mesh
+
         # Create a cylindrical mesh
         r_grid = np.linspace(
             0, Li2O_bed_radius, (int(Li2O_bed_radius / cell_size)) + 1
@@ -472,13 +489,17 @@ mesh = 1  # Enable (1) / disable (0) mesh tallies.
 cell_size = 0.2  # cm # Size of mesh cells for mesh tallies
 batches = 100  # Number of batches for the simulation
 if mesh == 1:
-    particles = int(1e6)  # Number of particles per batch for meshed model
+    particles = int(
+        1e6
+    )  # Number of particles per batch for meshed model (increase if rel stdev is too large)
 else:
     particles = int(1.5e4)  # Number of particles per batch for non-meshed model
 
 # Lithium Oxide pellet bed properties
 pellet_porosity = 0.20  # 0 Guess of 20% porosity for Li20 pellets
-packing_efficiency = 0.7  # Random packing efficiency for equally-sized cylindrical pellets
+packing_efficiency = (
+    0.7  # Random packing efficiency for equally-sized cylindrical pellets
+)
 
 ## Dimensions
 # All dimensions in cm
@@ -698,7 +719,7 @@ if __name__ == "__main__":
     old_sp_path = f"statepoint.{model.settings.batches}.h5"
     new_sp_path = os.path.join(results_folder, "LiOx_pellet_results.h5")
 
-    # Rename the statepoint file and load it
+    # Rename the statepoint file
     try:
         os.rename(old_sp_path, new_sp_path)
         print(f"Renamed '{old_sp_path}' to '{new_sp_path}'")

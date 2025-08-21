@@ -258,7 +258,7 @@ if __name__ == '__main__':
         inventory_total[mask] += ghost_inventory
 
     # Calculate cumulative release
-    dt = np.diff(time_array, prepend=time_array[0])  # Time step for each interval
+    dt = np.diff(time_array, prepend=t_start)  # Time step for each interval
     cumulative_release = np.cumsum(release_rate_total * dt)
 
     print("Calculations complete.\n")
@@ -306,7 +306,7 @@ if __name__ == '__main__':
     ax2.axvspan(0, t_change / 3600, color='red', alpha=0.2, label='Irradiation Period')
 
     # Plot release rate vs time
-    ax2.plot(time_array[:] / 3600, release_rate_total[:], linestyle='-', color='tab:blue', label='Release Rate')
+    ax2.plot(time_array / 3600, release_rate_total, linestyle='-', color='tab:blue', label='Release Rate')
 
     ax2.set_title('Tritium Release Rate and Cumulative Release from Single Grain Over Time')
     ax2.set_xlabel('Time (hours)')
@@ -316,7 +316,7 @@ if __name__ == '__main__':
 
     # Secondary y-axis for cumulative release
     ax2b = ax2.twinx()
-    ax2b.plot(time_array[1:] / 3600, cumulative_release[1:], color='tab:orange', linestyle='--', label='Cumulative Release')
+    ax2b.plot(time_array / 3600, cumulative_release, color='tab:orange', linestyle='--', label='Cumulative Release')
     ax2b.set_ylabel('Cumulative Release (atoms)', color='tab:orange')
     ax2b.set_ylim(bottom=0)
 
@@ -338,7 +338,7 @@ if __name__ == '__main__':
     # Highlight irradiation period
     ax3.axvspan(0, t_change / 3600, color='red', alpha=0.2, label='Irradiation Period')
 
-    ax3.plot(time_array[:] / 3600, inventory_total, lw=2, label='Model Prediction')
+    ax3.plot(time_array / 3600, inventory_total, lw=2, label='Model Prediction')
     ax3.axvline(x=t_change / 3600, color='k', linestyle='--', label=f'G changes at {t_change / 3600:.1f}h')
     ax3.set_xlabel('Time (hours)', fontsize=12)
     ax3.set_ylabel('Total Tritium Inventory (atoms)', fontsize=12)
@@ -349,4 +349,3 @@ if __name__ == '__main__':
     plt.show()
 
     print("Done.")
-

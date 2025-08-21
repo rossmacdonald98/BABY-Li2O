@@ -674,7 +674,7 @@ lead.add_nuclide("Pb208", 0.524, "ao")
 if __name__ == "__main__":
 
     # Define Results folder path
-    results_folder = "/home/Repositories/BABY-LiOx/analysis/neutron/Results"
+    results_folder = "../results"
 
     # Delete any existing statepoint and summary files
     for file in glob.glob(os.path.join(results_folder, "LiOx_powder_results.h5")):

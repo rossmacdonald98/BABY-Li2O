@@ -491,7 +491,7 @@ mesh = 1  # Enable (1) / disable (0) mesh tallies.
 cell_size = 0.2  # cm # Size of mesh cells for mesh tallies
 batches = 100  # Number of batches for the simulation
 if mesh == 1:
-    particles = int(1e6)  # Number of particles per batch for meshed model
+    particles = int(1e3)  # Number of particles per batch for meshed model
 else:
     particles = int(1.5e4)  # Number of particles per batch for non-meshed model
 
@@ -693,7 +693,7 @@ lead.add_nuclide("Pb208", 0.524, "ao")
 if __name__ == "__main__":
 
     # Define Results folder path
-    results_folder = "../results"
+    results_folder = "./results"
 
     # Delete any existing statepoint and summary files
     for file in glob.glob(os.path.join(results_folder, "LiOx_powder_results.h5")):

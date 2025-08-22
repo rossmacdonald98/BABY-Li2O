@@ -486,10 +486,10 @@ def baby_geometry():
 
 ## Define the BABY model
 mesh = 1  # Enable (1) / disable (0) mesh tallies.
-cell_size = 0.2  # cm # Size of mesh cells for mesh tallies
+cell_size = 0.1756  # cm # Size of mesh cells for mesh tallies
 batches = 100  # Number of batches for the simulation
 if mesh == 1:
-    particles = int(1e6)  # Number of particles per batch for meshed model (increase if rel stdev too large)
+    particles = int(1.5e6)  # Number of particles per batch for meshed model (increase if rel stdev too large)
 else:
     particles = int(1.5e4)  # Number of particles per batch for non-meshed model
 

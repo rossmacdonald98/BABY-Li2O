@@ -54,17 +54,13 @@ $$
 $$
 
 **At the Grain Surface ($r=r_{grain}$):**
-The diffusive flux from the bulk must equal the net flux from surface desorption/adsorption ($J_{grain}$).
+The diffusive flux from the bulk must equal the net flux from surface desorption/adsorption ($J_{\text{grain}}$).
 
-$$
-\frac{\partial C_m}{\partial r} \bigg|{r=r_{grain}} = -\frac{J_{grain}}{D}
-$$
+$$ \frac{\partial C_m}{\partial r} \bigg|_{r=r_{\text{grain}}} = -\frac{J_{\text{grain}}}{D} $$
 
 where the surface flux is defined as:
 
-$$
-J_{grain} = k_{des} C_{m, surface}^2 - k_{ads} C_{pore}
-$$
+$$ J_{\text{grain}} = k_{\text{des}} C_{m, \text{surface}}^2 - k_{\text{ads}} C_{\text{pore}} $$
 
 This expression captures second-order desorption (recombination) and first-order adsorption from the pore gas.
 
@@ -74,41 +70,33 @@ This expression captures second-order desorption (recombination) and first-order
 
 This section describes the transport of tritium from the grain surfaces into the bulk sparge gas.
 
-### 3.1. Pore Gas Concentration ($C_{pore}$)
+### 3.1. Pore Gas Concentration ($C_{\text{pore}}$)
 
-Assuming the pore network within a pellet at a given axial location is well-mixed, the change in pore gas concentration is a mass balance between the release from all grains and the transfer to the sparge gas:
+Assuming the pore network within a pellet at a given axial location is well-mixed, the change in pore gas concentration ($C_{\text{pore}}$) is a mass balance between the release from all grains and the transfer to the sparge gas:
 
-$$
-\frac{dC_{pore}}{dt} = \frac{J_{grain} \cdot A_{internal}}{V_{pore}} - \frac{J_{pellet} \cdot A_{external}}{V_{pore}}
-$$
+$$ \frac{dC_{\text{pore}}}{dt} = \frac{J_{\text{grain}} \cdot A_{\text{internal}}}{V_{\text{pore}}} - \frac{J_{\text{pellet}} \cdot A_{\text{external}}}{V_{\text{pore}}} $$
 
-* $J_{pellet}$: Flux of tritium from the pellet's external surface to the sparge gas, defined by a mass transfer correlation:
+* $J_{\text{pellet}}$: Flux of tritium from the pellet's external surface to the sparge gas, defined by a mass transfer correlation:
 
-$$
-J_{pellet} = h_{pellet} (C_{pore} - C_{sparge})
-$$
+$$ J_{\text{pellet}} = h_{\text{pellet}} (C_{\text{pore}} - C_{\text{sparge}}) $$
   
-* $A_{internal}$: Total exposed surface area of grains within a pellet.
-* $A_{external}$: External surface area of a single pellet.
-* $V_{pore}$: Total pore volume within a single pellet.
+* $A_{\text{internal}}$: Total exposed surface area of grains within a pellet.
+* $A_{\text{external}}$: External surface area of a single pellet.
+* $V_{\text{pore}}$: Total pore volume within a single pellet.
 
-### 3.2. Sparge Gas Concentration ($C_{sparge}$)
+### 3.2. Sparge Gas Concentration ($C_{\text{sparge}}$)
 
 The packed bed of pellets is modeled as a Plug Flow Reactor (PFR), solved numerically by discretizing the bed into a series of CSTRs (plugs).
 
 * **For Plug ($j = 0$) (Inlet):**
-    Assuming pure sparge gas inlet ($C_{inlet}=0$):
+    Assuming pure sparge gas inlet ($C_{\text{inlet}}=0$):
   
-$$
-\frac{dC_{sparge, j=0}}{dt} = \frac{J_{pellet, j=0} \cdot A_{pellets, plug}}{V_{sparge, plug}} - \frac{Q_{sparge} \cdot C_{sparge, j=0}}{V_{sparge, plug}}
-$$
+$$ \frac{dC_{\text{sparge}, j=0}}{dt} = \frac{J_{\text{pellet}, j=0} \cdot A_{\text{pellets, plug}}}{V_{\text{sparge, plug}}} - \frac{Q_{\text{sparge}} \cdot C_{\text{sparge}, j=0}}{V_{\text{sparge, plug}}} $$
 
 * **For Downstream Plugs ($j=n$):**
     The mass balance includes convective flow from the upstream plug:
   
-$$
-\frac{dC_{sparge, j=n}}{dt} = \frac{J_{pellet, j=n} \cdot A_{pellets, plug}}{V_{sparge, plug}} + \frac{Q_{sparge} \cdot C_{sparge, j=n-1}}{V_{sparge, plug}} - \frac{Q_{sparge} \cdot C_{sparge, j=n}}{V_{sparge, plug}}
-$$
+$$ \frac{dC_{\text{sparge}, j=n}}{dt} = \frac{J_{\text{pellet}, j=n} \cdot A_{\text{pellets, plug}}}{V_{\text{sparge, plug}}} + \frac{Q_{\text{sparge}} \cdot C_{\text{sparge}, j=n-1}}{V_{\text{sparge, plug}}} - \frac{Q_{\text{sparge}} \cdot C_{\text{sparge}, j=n}}{V_{\text{sparge, plug}}} $$
 
 ---
 
@@ -134,12 +122,8 @@ $$
 
 * **Surface Node ($i=N$):** The boundary condition is enforced using a "ghost point" method. Substituting the discretized first and second derivatives into the diffusion part of the governing equation yields:
 
-$$
-\frac{\partial C_m}{\partial t} \bigg|{diffusion, surface} = \frac{2D(C_{N-1}-C_N)}{\Delta r^2} - 2 J_{grain} \left( \frac{1}{\Delta r} + \frac{1}{r_g} \right)
-$$
+$$ \frac{\partial C_m}{\partial t} \bigg|_{\text{diffusion, surface}} = \frac{2D(C_{N-1}-C_N)}{\Delta r^2} - 2 J_{\text{grain}} \left( \frac{1}{\Delta r} + \frac{1}{r_g} \right) $$
 
-* To account for sintering, the release term (related to $J_{grain}$) is scaled by the surface area reduction factor, $F_r$:
+* To account for sintering, the release term (related to $J_{\text{grain}}$) is scaled by the surface area reduction factor, $F_r$:
     
-$$
-\frac{\partial C_m}{\partial t} \bigg|{diffusion, surface} = \frac{2D(C_{N-1}-C_N)}{\Delta r^2} - F_r \cdot 2 J_{grain} \left( \frac{1}{\Delta r} + \frac{1}{r_g} \right)
-$$
+$$ \frac{\partial C_m}{\partial t} \bigg|_{\text{diffusion, surface}} = \frac{2D(C_{N-1}-C_N)}{\Delta r^2} - F_r \cdot 2 J_{\text{grain}} \left( \frac{1}{\Delta r} + \frac{1}{r_g} \right) $$

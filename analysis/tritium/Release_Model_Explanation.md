@@ -1,4 +1,4 @@
-# Comprehensive Explanation of the Tritium Release Model
+# Explanation of the Tritium Release Model
 
 ## 1. Introduction
 
@@ -57,11 +57,11 @@ where:
     \frac{\partial C_m}{\partial r} \bigg|_{r=0} = 0
     $$
 
-2.  **Grain Surface ($r=r_g$):** The diffusive flux of tritium reaching the surface from the bulk must equal the net flux of tritium leaving the surface.
+2.  **Grain Surface ($r=r_g$):** The diffusive flux of tritium reaching the grain surface from the bulk must equal the net flux of tritium leaving the surface.
     $$
-    -D \frac{\partial C_m}{\partial r} \bigg|_{r=r_g} = J_{\text{surface}}
+    -D \frac{\partial C_m}{\partial r} \bigg|_{r=r_g} = J_{\text{grain}}
     $$
-    The surface flux, $J_{\text{surface}}$, is determined by desorption from the surface and adsorption from the surrounding gas. This is a key coupling point to the meso-scale model.
+    The surface flux, $J_{\text{grain}}$, is determined by desorption from the surface and adsorption from the surrounding gas. This is a key coupling point to the meso-scale model.
 
 ## 4. Inter-Grain and Packed Bed Transport
 
@@ -77,7 +77,7 @@ In the powder model, the grains are in direct contact with the helium sparge gas
     $$
 *   **Packed Bed Transport:** The bed is modeled as a Plug Flow Reactor (PFR), which is solved numerically by discretizing it into a series of CSTRs (Continuous Stirred-Tank Reactors). For each axial plug $j$, the change in sparge gas concentration ($C_{\text{sparge},j}$) is given by a mass balance:
     $$
-    \frac{dC_{\text{sparge}, j}}{dt} = \frac{Q_{\text{sparge}}}{V_{\text{sparge, plug}}}(C_{\text{sparge}, j-1} - C_{\text{sparge}, j}) + \frac{J_{\text{grain}, j} \cdot A_{\text{grains, plug}}}{V_{\text{sparge, plug}}}
+    \frac{dC_{\text{sparge}, j}}{dt} = \underbrace{\frac{J_{\text{grain}, j} \cdot A_{\text{grains, plug}}}{V_{\text{sparge, plug}}}}_{\text{Release from powder}} - \underbrace{\frac{Q_{\text{sparge}}}{V_{\text{sparge, plug}}}(C_{\text{sparge}, j-1} - C_{\text{sparge}, j})}_{\text{Removal via convection}} 
     $$
     where $Q_{\text{sparge}}$ is the sparge gas flow rate, $V_{\text{sparge, plug}}$ is the gas volume in the plug, and $A_{\text{grains, plug}}$ is the total surface area of all grains in that plug.
 
@@ -91,7 +91,7 @@ For sintered pellets, an intermediate step is required to model the transport th
     $$
 *   **Step 2: Pellet Pore to Sparge Gas:** A mass balance on the tritium in the pore volume of a single pellet gives the rate of change of $C_{\text{pore}}$. This balances the total flux from all internal grains against the flux leaving the pellet's external surface.
     $$
-    \frac{dC_{\text{pore}}}{dt} = \frac{J_{\text{grain}} \cdot A_{\text{internal}}}{V_{\text{pore}}} - \frac{J_{\text{pellet}} \cdot A_{\text{external}}}{V_{\text{pore}}}
+    \frac{dC_{\text{pore}}}{dt} = \underbrace{\frac{J_{\text{grain}} \cdot A_{\text{internal}}}{V_{\text{pore}}}}_{\text{Release from grains}} - \underbrace{\frac{J_{\text{pellet}} \cdot A_{\text{external}}}{V_{\text{pore}}}}_{\text{Release from pellet}}
     $$
     The flux from the pellet to the sparge gas, $J_{\text{pellet}}$, is defined by a mass transfer correlation:
     $$
@@ -99,7 +99,7 @@ For sintered pellets, an intermediate step is required to model the transport th
     $$
 *   **Packed Bed Transport:** The macro-scale model is identical in form to the powder model, but the source term is now the flux from the pellets ($J_{\text{pellet}}$) rather than directly from the grains.
     $$
-    \frac{dC_{\text{sparge}, j}}{dt} = \frac{Q_{\text{sparge}}}{V_{\text{sparge, plug}}}(C_{\text{sparge}, j-1} - C_{\text{sparge}, j}) + \frac{J_{\text{pellet}, j} \cdot A_{\text{pellets, plug}}}{V_{\text{sparge, plug}}}
+    \frac{dC_{\text{sparge}, j}}{dt} = \underbrace{\frac{J_{\text{pellet}, j} \cdot A_{\text{pellets, plug}}}{V_{\text{sparge, plug}}}}_{\text{Release from pellets}} - \underbrace{\frac{Q_{\text{sparge}}}{V_{\text{sparge, plug}}}(C_{\text{sparge}, j-1} - C_{\text{sparge}, j})}_{\text{Removal via convection}}
     $$
 
 ### Sintering Effect ($F_r$)

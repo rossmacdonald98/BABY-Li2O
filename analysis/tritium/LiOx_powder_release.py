@@ -37,7 +37,7 @@ import os
 # --- 1. PHYSICAL AND SIMULATION PARAMETERS ---
 
 # --- Grain & Powder Bed Properties ---
-r_g = 0.025 / 2  # Average Grain Radius (cm)
+r_g = 0.05 / 2  # Average Grain Radius (cm)
 packing_density = 0.64  # Powder bed packing efficiency (0.64 = Packing efficiency for random spheres) (φ)
 r_bed = 6.5  # Packed Bed Radius (cm)
 z_bed = 8  # Packed Bed Length (cm)

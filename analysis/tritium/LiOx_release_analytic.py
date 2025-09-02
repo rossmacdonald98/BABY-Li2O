@@ -184,7 +184,7 @@ def calculate_inventory(t, G, a, D, h, alpha_n):
 # --- DEFINE PHYSICAL AND SIMULATION PARAMETERS ---
     
 # Physical Parameters 
-a = 0.00025 / 2    # Grain radius (m)
+a = 0.0005 / 2    # Grain radius (m)
 D = 1e-13      # Diffusivity (m^2/s)
 K_d = 1e-3     # Desorption rate constant (m/s)
     

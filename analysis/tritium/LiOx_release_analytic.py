@@ -265,25 +265,34 @@ if __name__ == '__main__':
 
     # --- EXPORT RESULTS TO JSON ---
     print("Exporting results to JSON...")
-    results_dict = {
+
+    # Create a dictionary to hold all parameters
+    parameters = {
+        "grain_radius_m": a,
+        "diffusivity_m2_per_s": D,
+        "desorption_constant_m_per_s": K_d,
+        "initial_generation_rate_atoms_per_m3_s": G1,
+        "secondary_generation_rate_atoms_per_m3_s": G2,
+        "t_change_s": t_change,
+        "t_end_s": t_end,
+        "n_roots": n_roots,
+    }
+
+    # Create a dictionary for the results, converting numpy arrays to lists
+    results = {
+        "time_s": time_array.tolist(),
         "time_hours": (time_array / 3600).tolist(),
         "release_rate_atoms_per_s": release_rate_total.tolist(),
         "cumulative_release_atoms": cumulative_release.tolist(),
         "inventory_atoms": inventory_total.tolist(),
         "radial_positions_m": radial_pos.tolist(),
         "concentration_profiles_atoms_per_m3": concentration_profiles.tolist(),
-        "parameters": {
-            "grain_radius_m": a,
-            "diffusivity_m2_per_s": D,
-            "desorption_constant_m_per_s": K_d,
-            "initial_generation_rate_atoms_per_m3_s": G1,
-            "secondary_generation_rate_atoms_per_m3_s": G2,
-            "generation_rate_change_time_s": t_change,
-        }
     }
 
+    # Combine into a single dictionary
+    export_data = {"simulation_parameters": parameters, "simulation_results": results}
     import json
     output_filename = "./results/LiOx_analytic_results.json"
     with open(output_filename, 'w') as f:
-        json.dump(results_dict, f, indent=4)
+        json.dump(export_data, f, indent=4)
     print(f"Results exported to {output_filename}\n")

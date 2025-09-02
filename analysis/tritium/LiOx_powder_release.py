@@ -411,7 +411,7 @@ results = {
 # Combine into a single dictionary
 export_data = {"simulation_parameters": parameters, "simulation_results": results}
 # Define Results folder path
-results_folder = "/home/Repositories/BABY-LiOx/analysis/tritium/results"
+results_folder = "./results"
 results_file = os.path.join(results_folder, "LiOx_powder_results.json")
 
 # Check if the results file already exists

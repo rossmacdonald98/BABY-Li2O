@@ -263,89 +263,27 @@ if __name__ == '__main__':
 
     print("Calculations complete.\n")
 
-    # --- 4. PLOT THE RESULTS ---
-    print("Generating plots...")
+    # --- EXPORT RESULTS TO JSON ---
+    print("Exporting results to JSON...")
+    results_dict = {
+        "time_hours": (time_array / 3600).tolist(),
+        "release_rate_atoms_per_s": release_rate_total.tolist(),
+        "cumulative_release_atoms": cumulative_release.tolist(),
+        "inventory_atoms": inventory_total.tolist(),
+        "radial_positions_m": radial_pos.tolist(),
+        "concentration_profiles_atoms_per_m3": concentration_profiles.tolist(),
+        "parameters": {
+            "grain_radius_m": a,
+            "diffusivity_m2_per_s": D,
+            "desorption_constant_m_per_s": K_d,
+            "initial_generation_rate_atoms_per_m3_s": G1,
+            "secondary_generation_rate_atoms_per_m3_s": G2,
+            "generation_rate_change_time_s": t_change,
+        }
+    }
 
-
-    ## Plot 1: Concentration Profiles at Different Times
-    fig1, ax1 = plt.subplots(figsize=(10, 7))
-        
-    # Select a few time points to plot for clarity
-    num_profiles_to_plot = 10
-    n_irr = num_profiles_to_plot // 3
-    n_post = num_profiles_to_plot - n_irr
-
-    # Generate equally spaced times in each region
-    irr_times = np.linspace(0, t_change, n_irr, endpoint=False)
-    post_times = np.linspace(t_change, t_end, n_post)
-
-    # Find closest indices in time_array for each time
-    irr_indices = [np.abs(time_array - t).argmin() for t in irr_times]
-    post_indices = [np.abs(time_array - t).argmin() for t in post_times]
-
-    # Combine and ensure unique and sorted, always include t=0 and t_end
-    plot_indices = np.unique(np.concatenate(([0], irr_indices, post_indices, [len(time_array) - 1])))
-
-    for i in plot_indices:
-        time_val_hours = time_array[i] / 3600
-        # Plot concentration vs. radius
-        ax1.plot(radial_pos, concentration_profiles[i], marker='o', linestyle='-', label=f't = {time_val_hours:.2f} hours')
-
-    ax1.set_title('Tritium Concentration Profiles in the Grain')
-    ax1.set_xlabel('Radius r (m)')
-    ax1.set_ylabel('Concentration (atoms/m³)')
-    ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
-    ax1.legend(loc = 'best')
-    ax1.set_ylim(bottom=0)
-
-
-    ## Plot 2: Release Rate vs. Time
-    fig2, ax2 = plt.subplots(figsize=(10, 7))
-    
-    # Highlight irradiation period
-    ax2.axvspan(0, t_change / 3600, color='red', alpha=0.2, label='Irradiation Period')
-
-    # Plot release rate vs time
-    ax2.plot(time_array / 3600, release_rate_total, linestyle='-', color='tab:blue', label='Release Rate')
-
-    ax2.set_title('Tritium Release Rate and Cumulative Release from Single Grain Over Time')
-    ax2.set_xlabel('Time (hours)')
-    ax2.set_ylabel('Release Rate (atoms / s)', color='tab:blue')
-    ax2.grid(True, which='both', linestyle='--', linewidth=0.5)
-    ax2.set_ylim(bottom=0)
-
-    # Secondary y-axis for cumulative release
-    ax2b = ax2.twinx()
-    ax2b.plot(time_array / 3600, cumulative_release, color='tab:orange', linestyle='--', label='Cumulative Release')
-    ax2b.set_ylabel('Cumulative Release (atoms)', color='tab:orange')
-    ax2b.set_ylim(bottom=0)
-
-    # Add horizontal line for total tritium generated during irradiation
-    grain_volume = (4/3) * np.pi * a**3
-    total_generated = G1 * t_change * grain_volume
-    ax2b.axhline(total_generated, color='green', linestyle=':', linewidth=2, label='Total Tritium Generated')
-    ax2b.set_ylim(top=1.1 * total_generated)  # Set upper limit to 110% of total generated for better visibility
-
-    # Legends for both axes
-    lines, labels = ax2.get_legend_handles_labels()
-    lines2, labels2 = ax2b.get_legend_handles_labels()
-    ax2.legend(lines + lines2, labels + labels2, loc='center right')
-
-
-    ## Plot 3: Tritium Inventory vs. Time
-    fig3, ax3 = plt.subplots(figsize=(10, 7))
-
-    # Highlight irradiation period
-    ax3.axvspan(0, t_change / 3600, color='red', alpha=0.2, label='Irradiation Period')
-
-    ax3.plot(time_array / 3600, inventory_total, lw=2, label='Model Prediction')
-    ax3.axvline(x=t_change / 3600, color='k', linestyle='--', label=f'G changes at {t_change / 3600:.1f}h')
-    ax3.set_xlabel('Time (hours)', fontsize=12)
-    ax3.set_ylabel('Total Tritium Inventory (atoms)', fontsize=12)
-    ax3.set_title(f'Tritium Inventory in Single Grain vs Time', fontsize=14)
-    ax3.legend()
-    ax3.set_ylim(bottom=0)
-    plt.tight_layout()
-    plt.show()
-
-    print("Done.")
+    import json
+    output_filename = "./results/LiOx_analytic_results.json"
+    with open(output_filename, 'w') as f:
+        json.dump(results_dict, f, indent=4)
+    print(f"Results exported to {output_filename}\n")

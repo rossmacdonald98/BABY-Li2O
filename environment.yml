@@ -1,4 +1,4 @@
-name: BABY_LiOx_Dev
+name: BABY_LiOx
 channels:
   - conda-forge
 dependencies:

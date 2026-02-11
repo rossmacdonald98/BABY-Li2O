@@ -20,7 +20,13 @@ import numpy as np
 import os
 import glob
 
-
+# Confgure OpenMC to use local cross-sections if available
+local_xs_path = os.path.abspath("./cross_sections/cross_sections.xml")
+if os.path.exists(local_xs_path):
+    openmc.config["cross_sections"] = local_xs_path
+    os.environ["OPENMC_CROSS_SECTIONS"] = local_xs_path
+    print(f"Using local cross-sections from {local_xs_path}")
+    
 ############################################################################
 # Functions
 def calculate_breeder_depth(R, r, g, V):
@@ -485,7 +491,7 @@ def baby_geometry():
 # Setup
 
 ## Define the BABY model
-mesh = 1  # Enable (1) / disable (0) mesh tallies.
+mesh = 0  # Enable (1) / disable (0) mesh tallies.
 cell_size = 0.1756  # cm # Size of mesh cells for mesh tallies
 batches = 100  # Number of batches for the simulation
 if mesh == 1:
@@ -727,15 +733,15 @@ if __name__ == "__main__":
     # Load the statepoint from the new path
     sp = openmc.StatePoint(new_sp_path)
 
-    # get the tally for the global TBR from the statepoint
-    tbr_tally = sp.get_tally(name="TBR").get_pandas_dataframe()
+    tally_obj = sp.get_tally(name="TBR")
+
+    # Access underlying numpy arrays directly to avoid pandas error
+    mean = tally_obj.mean.ravel()[0]
+    stdev = tally_obj.std_dev.ravel()[0]
 
     # Print the global TBR results
-    mean = tbr_tally["mean"].iloc[0]
-    stdev = tbr_tally["std. dev."].iloc[0]
-
-    print(f"Global TBR: {mean:.6e}\n")
-    print(f"Global TBR std. dev: {stdev:.6e}\n")
+    print(f"Global TBR: {mean:.6e}")
+    print(f"Global TBR Standard Deviation: {stdev:.6e}")
 
     rel_stdev = stdev / mean
 
@@ -744,8 +750,8 @@ if __name__ == "__main__":
 
     Li2O_pellet_results = {
         "modelled_TBR": {
-            "mean": tbr_tally["mean"].iloc[0],
-            "std_dev": tbr_tally["std. dev."].iloc[0],
+            "mean": mean,
+            "std_dev": stdev,
         }
     }
 

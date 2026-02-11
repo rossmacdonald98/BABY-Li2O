@@ -136,7 +136,7 @@ def baby_model():
 
     settings = openmc.Settings()
 
-    src = A325_generator_diamond((x_c, y_c, z_c - 5.635), (1, 0, 0))
+    src = A325_generator_diamond((x_c, y_c, z_c - 5.635), (0, 0, 1))
     settings.source = src
     settings.batches = batches
     settings.inactive = 0
@@ -696,7 +696,7 @@ if __name__ == "__main__":
     results_folder = "./results"
 
     # Delete any existing statepoint and summary files
-    for file in glob.glob(os.path.join(results_folder, "LiOx_powder_results.h5")):
+    for file in glob.glob(os.path.join(results_folder, "Li2O_powder_results.h5")):
         os.remove(file)
         print(f"Deleted existing file: {file}")
 
@@ -705,7 +705,7 @@ if __name__ == "__main__":
         print(f"Deleted existing file: {file}")
 
     # Delete any existing processed_data.json file
-    processed_data_file = os.path.join(results_folder, "LiOx_powder_results.json")
+    processed_data_file = os.path.join(results_folder, "Li2O_powder_results.json")
     if os.path.exists(processed_data_file):
         os.remove(processed_data_file)
         print(f"Deleted existing file: {processed_data_file}")
@@ -715,7 +715,7 @@ if __name__ == "__main__":
 
     # Define file paths
     old_sp_path = f"statepoint.{model.settings.batches}.h5"
-    new_sp_path = os.path.join(results_folder, "LiOx_powder_results.h5")
+    new_sp_path = os.path.join(results_folder, "Li2O_powder_results.h5")
 
     # Rename the statepoint file and load it
     try:
@@ -742,7 +742,7 @@ if __name__ == "__main__":
     print(f"Relative standard deviation: {rel_stdev:.6e}\n")
     print("Relative standard deviation below 1e-02 (1%) indicates good convergence.")
 
-    LiOx_powder_results = {
+    Li2O_powder_results = {
         "modelled_TBR": {
             "mean": tbr_tally["mean"].iloc[0],
             "std_dev": tbr_tally["std. dev."].iloc[0],
@@ -758,7 +758,7 @@ if __name__ == "__main__":
         print(f"Processed data file not found, creating it in {processed_data_file}")
         existing_data = {}
 
-    existing_data.update(LiOx_powder_results)
+    existing_data.update(Li2O_powder_results)
 
     with open(processed_data_file, "w") as f:
         json.dump(existing_data, f, indent=4)
